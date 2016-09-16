@@ -7,10 +7,26 @@
             [goog.events :as events]))
 
 ;;how do we accomplish this?
-;google.charts.load('current', {'packages':['gantt']});
-;google.charts.setOnLoadCallback(drawChart);
+;;google.charts.load('current', {'packages':['gantt']});
+;;google.charts.setOnLoadCallback(drawChart);
 
-(.load js/google "charts" "current" (clj->js {:packages ["gantt"]})) 
+;;this form doesn't work, complains about no load method...
+;;(.load js/google "charts" "current" (clj->js {:packages ["gantt"]}))
+;;if you look at what the google example pulls in, there's
+;;a google object with :charts field
+;;which has a :load field...
+
+;;(.load js/google "charts" "current" (clj->js {:packages ["gantt"]}))
+
+(defn load-charts [& packages]
+  (let [f (.-load (.-charts js/google))]      
+    (f "current" (clj->js {:packages (vec packages)}))))
+(load-charts "gantt")
+
+;;so, this is a hacked way to accomplish the load process...
+;;it appears to work ok...
+;;more idiomatic way?
+;(.charts js/google   (load "current" (clj->js {:packages ["gantt"]})))
 
 ;;(.setOnLoadCallback js/google draw-chart)
 
@@ -18,7 +34,7 @@
 
 ;;these are the fields the google charts
 ;;api expects
-(def ganntschema ["Task ID" "string"
+(def ganttschema ["Task ID" "string"
                   "Task Name" "string"
                   "Start Date" "date" 
                   "End Date" "date"
@@ -27,21 +43,31 @@
                   "Dependencies" "string"])
 
 (defn if-empty
-  [x v]
-  (if (= x "") v
-      x))
+  ([x v]
+   (if (= x "") v
+       x))
+  ([x v f]
+   (if (= x "") v
+       (f x))))
+
+(defn ->date [x] (js/Date. x))
+
+
+;;note the wierdness...
+;;we use cljs.read/read-string
+;;instead of read-string
 
 ;;currently we assume rows are lines.
 ;;coerce a line of text into a gantt row.
-(defn gannt-row [l]
+(defn gantt-row [l]
   (let [xs (clojure.string/split l #"\t")
         [task name start end dur per deps] xs]
     [task
      name
-     (js/Date start)
-     (js/Date end)
-     (if-empty dur nil)
-     (if-empty per 0)
+     (if-empty start nil ->date)
+     (if-empty end nil ->date)
+     (if-empty dur nil cljs.reader/read-string)
+     (if-empty per 0 cljs.reader/read-string)
      deps]))
 
 (defn ->data-table
@@ -53,14 +79,18 @@
                     fld-types)))
 
 (defn conj-rows [tbl xs]
-  (do  (->> xs
-            (map clj->js)
-            (addRows)
-            (. tbl ))
-       tbl))
+  (doseq [r   (->> xs
+                   (map clj->js))]
+    (.addRow tbl r))
+  tbl)
 
 (defn gantt-table [& xs]
-  (conj-rows (->data-table ganntschema) xs))
+  (let [schm (->> ganttschema
+                  (partition 2)
+                  (map (fn [[l r]] [r l])))]
+    (-> (->data-table schm)
+        ;(conj-rows  xs)
+        )))
 
 ;; //the the chart, defined by xs, into element tgt.
 ;; function drawChart(lines, tgt){
