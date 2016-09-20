@@ -5,7 +5,8 @@
             [goog.events :as events]
             [figdemo.util :as util]
             [figdemo.io :as io]
-            [figdemo.controls :as controls]))
+            [figdemo.controls :as controls]
+            [figdemo.gantt :as gantt]))
 
 (enable-console-print!)
 
@@ -19,10 +20,16 @@
 ;;we'll also need to use .-name a lot....
 
 (defn on-js-reload []
-  ;; optionally touch your app-state to force rerendering depending on
-  ;; your application
-  ;; (swap! app-state update-in [:__figwheel_counter] inc)
+  ;;optionally touch your app-state to force rerendering depending on
+  ;;your application
+  ;;(swap! app-state update-in [:__figwheel_counter] inc)
 )
 
 ;;(defn read-file []
   
+(comment ; testing
+  (def res   (io/file->lines (io/current-file)))
+  (def xs    @res)
+  (def lines (clojure.string/split-lines xs))
+  (def recs (map gantt/gantt-row (rest lines)))
+)

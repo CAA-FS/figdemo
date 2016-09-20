@@ -72,8 +72,8 @@
 
 (defn ->data-table
   ([] (js/google.visualization.DataTable.))
-  ([fld-types] (reduce (fn [acc [fld type]]
-                      (do (. acc (addColumn fld type))
+  ([fld-types] (reduce (fn [acc [type fld]]
+                      (do (. acc (addColumn type fld))
                           acc))
                     (js/google.visualization.DataTable.)
                     fld-types)))
@@ -81,16 +81,20 @@
 (defn conj-rows [tbl xs]
   (doseq [r   (->> xs
                    (map clj->js))]
-    (.addRow tbl r))
+    (do (println [:adding r])
+        (.addRow tbl r)))
   tbl)
 
-(defn gantt-table [& xs]
+(defn gantt-table [& [xs]]
   (let [schm (->> ganttschema
                   (partition 2)
                   (map (fn [[l r]] [r l])))]
-    (-> (->data-table schm)
-        ;(conj-rows  xs)
-        )))
+    (->
+     (->data-table schm)
+      (conj-rows  xs)
+     )
+  )
+)
 
 ;; //the the chart, defined by xs, into element tgt.
 ;; function drawChart(lines, tgt){
@@ -101,7 +105,7 @@
 ;; }
 (defn draw-chart [data tgt & {:keys [height] :as options :or {height 275}}]
   (let [opts  (clj->js options)
-        el    (js/getElement tgt)
+        el    (dom/getElement tgt)
         chart (google.visualization.Gantt. el)]
     (do (. chart (draw data options)))))
   
