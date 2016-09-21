@@ -58,3 +58,19 @@
         _   (read-file! rdr fl)
         ]
     the-result))
+
+(defn file->lines!! [fl]
+  (let [result (async/chan)
+        rdr (->file-reader
+             (fn [_]
+               (this-as this
+                  (let [txt (.-result this)
+                       ; _ (log! txt)
+                        ]
+                    (go                     
+                      (async/put! result txt)
+                      (async/close! result)
+                      )))))
+        _  (read-file! rdr fl)]
+    result))
+

@@ -1,5 +1,6 @@
 Task ID	Task Name	Start Date	End Date	Duration	Percent Complete	Dependencies
 Research	Find sources	1/1/2015	1/5/2015		100	
-Cite	Create Bibliography		1/7/2015	1	25	
-Complete	Hand in paper		1/10/2015	1	0	Cite, Write
-Outline	Outline paper		1/6/2015	1	100	Research
+Write	Write Paper	1/6/2015	1/9/2015		25	Research,Outline
+Cite	Create Bibliography	1/6/2015	1/7/2015		20	Research
+Complete	Hand in paper	1/9/2015	1/10/2015		0	Cite,Write
+Outline	Outline paper	1/5/2015	1/6/2015		100	Research

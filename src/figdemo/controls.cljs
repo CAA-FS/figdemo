@@ -20,6 +20,8 @@
 (def file-browser (dom/getElement "file"))
 ;;the place where we stick our charts.
 (def the-chart (dom/getElement "the-chart"))
+;;the place where we stick our table data.
+(def the-table (dom/getElement "the-table"))
 
 ;;from david nolen's tutorial. we'll
 ;;comment this out in production.

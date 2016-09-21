@@ -14,7 +14,24 @@
 (println "heyo!!!")
 ;; define your app data so that it doesn't get over-written on reload
 
-(defonce app-state (atom {:text "Hello world!"}))
+;;we can use channels to munge around the async wierdness.
+(defn draw-current-chart []
+  (when-let [chrt (io/current-file)]
+    (go 
+    (let [_     (println (str "drawing the chart at " (.-name chrt)))
+          xs    (async/<!     (io/file->lines!! chrt))
+          lines (clojure.string/split-lines xs)
+          _     (println [:lines (take 2 lines)])
+          recs  (map gantt/gantt-row (rest lines))
+          data  (gantt/gantt-table (map clj->js recs))          
+          ]
+      (do (gantt/draw-chart data controls/the-chart)
+          (gantt/draw-table data controls/the-table)
+          )))))
+    
+
+(defonce app-state (atom {:text "Hello world!"
+                          :draw draw-current-chart}))
 
 ;;now, can we build a damn gannt chart or what?
 ;;we'll also need to use .-name a lot....
@@ -23,13 +40,25 @@
   ;;optionally touch your app-state to force rerendering depending on
   ;;your application
   ;;(swap! app-state update-in [:__figwheel_counter] inc)
+  (swap! app-state assoc :draw draw-current-chart)
 )
 
 ;;(defn read-file []
-  
+
+
+;;setup our button click to trigger rendering the chart
+(util/listen! controls/draw-button "click"
+  (fn [_] ((:draw @app-state))))
+
 (comment ; testing
-  (def res   (io/file->lines (io/current-file)))
-  (def xs    @res)
-  (def lines (clojure.string/split-lines xs))
-  (def recs (map gantt/gantt-row (rest lines)))
+  (do 
+    (def res   (io/file->lines (io/current-file)))
+    (def xs    @res)
+    (def lines (clojure.string/split-lines xs))
+    (def recs (map gantt/gantt-row (rest lines)))
+    (def data (gantt/gantt-table (map clj->js recs)))
+    (def el   (dom/getElement "the-chart"))
+    (def chart (google.visualization.Gantt. el))
+  )
+
 )

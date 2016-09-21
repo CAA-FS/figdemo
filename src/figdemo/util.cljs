@@ -22,4 +22,9 @@
       (fn [e] (async/put! out e)))
     out))
 
+;;just a wrapper around goog/events 
+(defn listen! [el type f]
+  (events/listen el type f))
+   
+
 (defn log! [txt] (.log js/console txt))

@@ -14,11 +14,24 @@
        File:    <input type="file" name="file" id="file">
        Draw:    <input type="button" name="drawchart" id="drawchart">
      </form>
-     <div id="the-chart">
-       nothing exists here yet
-     </div>
+     <table align="left">
+       <tr valign="top">
+         <td>
+           <div id="the-table" style="width: 700px; height: 300px;"></div>
+         </td>
+       </tr>
+       <tr>
+         <td >
+           <div id="the-chart" style="align: center; width: 1400px; height: 300px;"></div>
+         </td>
+       </tr>
+     </table>
+
+     
      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script src="js/compiled/figdemo.js" type="text/javascript"></script>
-  </body>
- 
+     <!-- <script type="text/javascript"> -->
+     <!--   google.charts.load('current', {'packages':['gantt']}); -->
+     <!-- </script> -->
+     <script src="js/compiled/figdemo.js" type="text/javascript"></script>
+  </body> 
 </html>

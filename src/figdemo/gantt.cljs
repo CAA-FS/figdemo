@@ -19,9 +19,9 @@
 ;;(.load js/google "charts" "current" (clj->js {:packages ["gantt"]}))
 
 (defn load-charts [& packages]
-  (let [f (.-load (.-charts js/google))]      
-    (f "current" (clj->js {:packages (vec packages)}))))
-(load-charts "gantt")
+ (let [f (.-load (.-charts js/google))]      
+   (f "current" (clj->js {:packages (vec packages)}))))
+(load-charts "gantt" "table")
 
 ;;so, this is a hacked way to accomplish the load process...
 ;;it appears to work ok...
@@ -31,6 +31,14 @@
 ;;(.setOnLoadCallback js/google draw-chart)
 
 (defn days->millis [d] (* d 24 60 60 1000))
+
+;;var formatter_long = new google.visualization.DateFormat({formatType: 'long'});
+(defn ->formatter []
+  (google.visualization.DateFormat.
+   (clj->js {:formatType "medium"})))
+;;var formatter_medium = new google.visualization.DateFormat({formatType: 'medium'});
+;;var formatter_short = new google.visualization.DateFormat({formatType: 'short'});
+
 
 ;;these are the fields the google charts
 ;;api expects
@@ -50,8 +58,12 @@
    (if (= x "") v
        (f x))))
 
-(defn ->date [x] (js/Date. x))
+;; (defn ->date [x]
+;;   (js/Date. x))
 
+(defn ->date [x]
+  (let [[d m y] (clojure.string/split x #"/")]
+    (js/Date. (long y)  (dec (long d)) (dec (long m)) 0 0)))
 
 ;;note the wierdness...
 ;;we use cljs.read/read-string
@@ -104,9 +116,18 @@
 ;;     chart.draw(data, options);
 ;; }
 (defn draw-chart [data tgt & {:keys [height] :as options :or {height 275}}]
-  (let [opts  (clj->js options)
+  (let [opts  (clj->js ;(assoc
+                        options
+                              ;:hAxis
+                           ;   {:format "M/d/yy"}
+        ;                      )
+        )
         el    (dom/getElement tgt)
         chart (google.visualization.Gantt. el)]
-    (do (. chart (draw data options)))))
+    (do (. chart (draw data opts)))))
   
-
+(defn draw-table [data tgt]
+  (let [tbl  (google.visualization.Table. (dom/getElement tgt))]
+    (. tbl (draw data (clj->js {:showRowNumber true,
+                                :width "100%"
+                                :height "100%"})))))
