@@ -1,0 +1,62 @@
+<html>
+<head>
+<title>Google Charts Tutorial</title>
+   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+   <script type="text/javascript">
+     google.charts.load('current', {packages: ['treemap']});     
+   </script>
+</head>
+<body>
+<div id="container" style="width: 550px; height: 400px; margin: 0 auto"></div>
+<script language="JavaScript">
+function drawChart() {
+   // Define the chart to be drawn.
+   var data = new google.visualization.DataTable();
+   var data = google.visualization.arrayToDataTable([
+      ['Location', 'Parent', 'Market trade volume (size)', 'Market increase/decrease (color)'],
+      ['Global',    null,                 0,                               0],
+      ['America',   'Global',             0,                               0],
+      ['Europe',    'Global',             0,                               0],
+      ['Asia',      'Global',             0,                               0],
+      ['Australia', 'Global',             0,                               0],
+      ['Africa',    'Global',             0,                               0],       
+      ['USA',       'America',            52,                              31],
+      ['Mexico',    'America',            24,                              12],
+      ['Canada',    'America',            16,                              -23],
+      ['France',    'Europe',             42,                              -11],
+      ['Germany',   'Europe',             31,                              -2],
+      ['Sweden',    'Europe',             22,                              -13],          
+      ['China',     'Asia',               36,                              4],
+      ['Japan',     'Asia',               20,                              -12],
+      ['India',     'Asia',               40,                              63],                  
+      ['Egypt',     'Africa',             21,                              0],          
+      ['Congo',     'Africa',             10,                              12],
+      ['Zaire',     'Africa',             8,                               10]
+   ]);
+   var options = {      
+      minColor: '#f00',
+      midColor: '#ddd',
+      maxColor: '#0d0',
+      headerHeight: 15,
+      fontColor: 'black',
+      showScale: true
+   };
+
+  var chart_div = document.getElementById('container');
+   // Instantiate and draw the chart.
+  var chart = new google.visualization.TreeMap(chart_div);
+  // Wait for the chart to finish drawing before calling the getImageURI() method.
+  google.visualization.events.addListener(chart, 'ready', function () {
+    chart_div.innerHTML = '<img src="' + chart.getImageURI() + '">';
+    console.log(chart_div.innerHTML);
+   });
+ chart.draw(data, options);
+ document.getElementById('png').outerHTML = '<a href="' + chart.getImageURI() + '">Printable version</a>';
+}
+google.charts.setOnLoadCallback(drawChart);
+</script>
+<div id='png'></div>
+</body>
+
+</html>

@@ -6,7 +6,8 @@
             [figdemo.util :as util]
             [figdemo.io :as io]
             [figdemo.controls :as controls]
-            [figdemo.gantt :as gantt]))
+            [figdemo.gantt :as gantt]
+            [figdemo.spork.util.table :as tbl]))
 
 (enable-console-print!)
 
@@ -42,9 +43,6 @@
   ;;(swap! app-state update-in [:__figwheel_counter] inc)
   (swap! app-state assoc :draw draw-current-chart)
 )
-
-;;(defn read-file []
-
 
 ;;setup our button click to trigger rendering the chart
 (util/listen! controls/draw-button "click"

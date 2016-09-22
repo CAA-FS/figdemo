@@ -44,6 +44,7 @@
 ;;api expects
 (def ganttschema ["Task ID" "string"
                   "Task Name" "string"
+                  "Resource" "string"
                   "Start Date" "date" 
                   "End Date" "date"
                   "Duration" "number" 
@@ -73,14 +74,18 @@
 ;;coerce a line of text into a gantt row.
 (defn gantt-row [l]
   (let [xs (clojure.string/split l #"\t")
-        [task name start end dur per deps] xs]
+        [task name resource start  end dur per deps] xs]
     [task
      name
+     resource
      (if-empty start nil ->date)
      (if-empty end nil ->date)
      (if-empty dur nil cljs.reader/read-string)
      (if-empty per 0 cljs.reader/read-string)
      deps]))
+
+
+  
 
 (defn ->data-table
   ([] (js/google.visualization.DataTable.))
@@ -131,3 +136,5 @@
     (. tbl (draw data (clj->js {:showRowNumber true,
                                 :width "100%"
                                 :height "100%"})))))
+
+

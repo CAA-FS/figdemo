@@ -3,7 +3,8 @@
   (:require [figdemo.util :as util]
             [cljs.core.async :as async]
             [goog.dom :as dom]
-            [goog.events :as events]))
+            [goog.events :as events]
+            ))
 
 ;;note: clojurescript support for the file api
 ;;is pretty much non-existent at the moment,
