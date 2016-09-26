@@ -85,26 +85,35 @@
                      (group-by :Period))]
     [p (:Response r)]))
 
+
+;;we could replace this with core.logic
+;;relations...
+
 ;;one common operation will be...
 ;;find left sample,
 ;;find right sample?
 ;;  Do we provide compatible samples?
-(defn compatible-samples [db l]
+(defn compatible-samples [db l & {:keys [same-src?]}]
   (let [[src case res & more] l]
-    (for [[src cases] db
+    (for [[other-src cases] db
           [othercase results] cases
           [restype qs] results 
           [q xs] qs
           :when (and (= case othercase)
-                     (= restype  res))]
-      [[src case restype q] xs])))
-        
-        
+                     (= restype  res)
+                     (if same-src? (= src other-src)
+                         true))]
+      [[other-src case restype q] xs])))
+
+;;given a set of compatible-samples...
+;;how can we interpolate?
+
    
 (comment ;testing
   (def res  (io/file->lines (io/current-file)))
-  (def recs (tbl/lines->records (clojure.string/split-lines @res) {}))
-  
+  (def recs (tbl/lines->records (clojure.string/split-lines @res)
+               figdemo.tadmudi/tadschema))
+  (def db (figdemo.tadmudi/tad-db recs))
 )
 
 (defn td [])
