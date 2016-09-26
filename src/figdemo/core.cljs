@@ -53,9 +53,9 @@
     (def res   (io/file->lines (io/current-file)))
     (def xs    @res)
     (def lines (clojure.string/split-lines xs))
-    (def recs (map gantt/gantt-row (rest lines)))
-    (def data (gantt/gantt-table (map clj->js recs)))
-    (def el   (dom/getElement "the-chart"))
+    (def recs  (map gantt/gantt-row (rest lines)))
+    (def data  (gantt/gantt-table (map clj->js recs)))
+    (def el    (dom/getElement "the-chart"))
     (def chart (google.visualization.Gantt. el))
   )
 
