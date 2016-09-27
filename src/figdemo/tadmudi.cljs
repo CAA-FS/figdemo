@@ -68,8 +68,8 @@
 
 ;;Builds up a nested database
 (defn tad-db [xs & {:keys [keyf]
-                    :or {keyf  (juxt :ACInventory
-                                     :RCInventory)}}]
+                    :or   {keyf  (juxt :ACInventory
+                                       :RCInventory)}}]
   (let [field-domains (distinct-fields xs)]
     (reduce (fn [acc  r]
               (let [k  (path-key r)
@@ -104,6 +104,15 @@
                      (if same-src? (= src other-src)
                          true))]
       [[other-src case restype q] xs])))
+
+;;we have a couple of operations that we'd like to
+;;perform:
+;;browse sample(s)...
+;;A sample points to a collection of records.
+;;The records are keyed by period and response.
+
+;;
+
 
 ;;given a set of compatible-samples...
 ;;how can we interpolate?

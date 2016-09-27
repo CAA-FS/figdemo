@@ -2,8 +2,9 @@
     (:require-macros [cljs.core.async.macros :refer [go]])
     (:require [cljs.core.async :as async]
               [goog.dom :as dom]
-              [goog.events :as events]))
-
+              [goog.events :as events]
+              [goog.ui.ComboBox]
+              [goog.ui.tree.TreeControl]))
 
 ;;Utils
 ;;=====
@@ -28,3 +29,68 @@
    
 
 (defn log! [txt] (.log js/console txt))
+
+
+;;going to try to use trees for path selection.
+;;Either that or comboboxes....
+ ;; var treeData = [
+ ;;      {name: 'Advanced Tooltip', url: 'advancedtooltip.html'},
+ ;;      {name: 'Autocomplete', childNodes: [
+ ;;        {name: 'Basic', url: 'autocomplete-basic.html'},
+ ;;        {name: 'Remote', url: 'autocompleteremote.html'},
+ ;;        {name: 'Rich Remote', url: 'autocompleterichremote.html'}
+ ;;      ]},
+
+(def tree-data [{:name "A" :url "blah.html"}
+                {:name "B" :childNodes
+                 [{:name "Basic" :url "blah.html"}
+                  {:name "Remote" :url "remote.html"}
+                  {:name "Rich Remote" :url "rr.html"}]}])
+  
+    ;; function buildNode(parent, nodeArray) {
+    ;;   for (var i = 0, node; node = nodeArray[i]; i++) {
+    ;;     if (node.name) {
+    ;;       var childNode = parent.getTree().createNode();
+    ;;       parent.add(childNode);
+    ;;       if (node.url) {
+    ;;         childNode.setSafeHtml(goog.html.SafeHtml.create('a', {
+    ;;           'href': node.url,
+    ;;           'title': node.name,
+    ;;           'target': 'demo'
+    ;;         }, node.name));
+    ;;         // Need to prevent BaseNode.onClick_ from calling preventDefault.
+    ;;         childNode.onClick_ = goog.nullFunction;
+    ;;       } else if (node.childNodes) {
+    ;;         childNode.setText(node.name);
+    ;;         buildNode(childNode, node.childNodes);
+    ;;       }
+    ;;     }
+    ;;   }
+;;                                           }
+
+(defn build-node [parent children]
+  (doseq [nd children]
+      (let [tr         (.getTree   parent)
+            child-node (.createNode tr)
+            _          (.setText child-node (:name nd))
+            _          (.add parent child-node)]
+        (when-let [children (:childNodes nd)]
+          (build-node child-node children)))))
+
+(defn init-tree
+  ([data]
+   (let [tree (goog.ui.tree.TreeControl. "The Tree")
+        _    (.setIsUserCollapsible tree false)
+        _    (build-node tree data)]
+    tree
+    ))
+  ([] (init-tree tree-data)))
+
+;;interesting....
+;;if you use (type ...) at the repl
+;;on a js or google closure object,
+;;you get back a js map of the object
+;;along with its properties.
+
+(defn render! [ctrl el]
+  (. ctrl (render (dom/getElement el))))
