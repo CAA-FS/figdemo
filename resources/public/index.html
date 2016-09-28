@@ -3,17 +3,19 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/tree.css" rel="stylesheet" type="text/css"> 
     <link href="css/style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
     <div id="app">
       <h2>Figwheel template</h2>
-      <p>Checkout your developer console.</p>
+      <p>Checkout your developer console.</p>      
     </div>
-     <form action="demo_form.asp">
-       File:    <input type="file" name="file" id="file">
-       Draw:    <input type="button" name="drawchart" id="drawchart">
-     </form>
+    <div id="the-tree" ></div>
+    <form action="demo_form.asp">
+      File:    <input type="file" name="file" id="file">
+      Draw:    <input type="button" name="drawchart" id="drawchart">
+    </form>
      <table align="left">
        <tr valign="top">
          <td>
@@ -25,6 +27,7 @@
            <div id="the-chart" style="align: center; width: 1400px; height: 300px;"></div>
          </td>
        </tr>
+
      </table>
 
      

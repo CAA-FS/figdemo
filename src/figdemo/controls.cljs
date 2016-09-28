@@ -22,9 +22,12 @@
 (def the-chart (dom/getElement "the-chart"))
 ;;the place where we stick our table data.
 (def the-table (dom/getElement "the-table"))
-
+;;Place where we shove our tree selector
+(def the-tree (dom/getElement "the-tree"))
 ;;from david nolen's tutorial. we'll
 ;;comment this out in production.
+(comment 
 (let [clicks (util/listen draw-button "click")]
   (go (while true
         (.log js/console (<! clicks)))))
+)

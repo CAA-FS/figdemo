@@ -89,6 +89,17 @@
 ;;we could replace this with core.logic
 ;;relations...
 
+
+;;Note:  I'm operating off the assumption
+;;that like-samples exist between cases...
+
+;;Construct a sample by:
+;;-Select a Demand  
+;;  -Select an SRC
+;;    -Select a Supply [ac rc]
+
+
+
 ;;one common operation will be...
 ;;find left sample,
 ;;find right sample?

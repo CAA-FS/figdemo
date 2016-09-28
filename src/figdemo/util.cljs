@@ -9,6 +9,16 @@
 ;;Utils
 ;;=====
 
+(defn element? [obj] (instance? js/Element obj))
+;;Note: we can use instance? just like in clojure.
+;;Rather than java classes, we have javascript classes..
+;;One common on is javascript Element types...which
+;;are html elements.
+(defn element [nm]
+  (if (element? nm)
+      nm
+      (dom/getElement nm)))
+
 ;;a dumb way to get the current state of "this"
 ;;from js.  better way is to use 'this-as
 (defn get-this [] (js* "this"))
@@ -80,10 +90,9 @@
 (defn init-tree
   ([data]
    (let [tree (goog.ui.tree.TreeControl. "The Tree")
-        _    (.setIsUserCollapsible tree false)
-        _    (build-node tree data)]
-    tree
-    ))
+         _    (.setIsUserCollapsible tree false)
+         _    (build-node tree data)]
+    tree))
   ([] (init-tree tree-data)))
 
 ;;interesting....
@@ -93,4 +102,4 @@
 ;;along with its properties.
 
 (defn render! [ctrl el]
-  (. ctrl (render (dom/getElement el))))
+  (. ctrl (render (element el))))
