@@ -87,8 +87,40 @@
     [p (:Response r)]))
 
 ;;what if we can't find a sample?
+;;we can use sample-neighbors to lookup the map of samples
+;;that we can interpolate off of.
 (defn sample-neighbors [db [src [pol demand atype] rtype [ac rc]]]
   (get-in db [src [pol demand atype] rtype]))
+
+;;Given our neighboring samples...
+;;we can get the xy-pairs from them...
+(defn nearest-samples [db k]
+  (let [p         (last k)
+        [x y]   p
+        samples   (sample-neighbors db k)
+        ;;this gives us 3 [x y] points to triangluate
+        ;;we need [x y z] though.  In this case, there
+        ;;are multiple responses, so multiple z sets.
+        tri       (proj/nearest p (keys samples))
+        zs        (for [k tri
+                        r (get samples k)]
+                    (let [[x y] k]
+                      [(:Period r) [x y (:Response r)]]))
+        planes    (reduce (fn [acc [period coords]]
+                            (assoc acc period
+                                   (conj (get acc period [])
+                                         coords))) {} zs)
+        ;;we can project our point onto each plane now.
+        ]
+    (for [[period plane] planes]
+      [period [x y (proj/onto-plane p (proj/->plane-vec plane))]])))
+        
+    ;; (for [
+    ;;     project   
+    ;;                 (onto-plane p
+    ;;                    (->plane-vec
+    ;;                             (nearest [ac rc] data)))]
+    
 
 ;;we could replace this with core.logic
 ;;relations...
@@ -133,7 +165,7 @@
 
 (defn db->pathdb [db]
   (if (map? db) 
-    (for [[k v] (seq db)]    
+    (for [[k v] (sort-by first (seq db))]    
       (if (map? v)
         {:name k
          :childNodes (vec (db->pathdb v))}
@@ -142,6 +174,8 @@
     {:name db
      :url "blah"}))
 
+
+;;so now, as
 
 ;;given a set of compatible-samples...
 ;;how can we interpolate?
