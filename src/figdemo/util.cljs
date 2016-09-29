@@ -39,7 +39,7 @@
    
 
 (defn log! [txt] (.log js/console txt))
-
+(defn clear! [el] (aset (element el) "innerHTML" ""))
 
 ;;going to try to use trees for path selection.
 ;;Either that or comboboxes....
@@ -100,6 +100,37 @@
 ;;on a js or google closure object,
 ;;you get back a js map of the object
 ;;along with its properties.
+(defn get-path [nd]
+  (loop [acc nil
+         x nd]
+    (if-let [p (.getParent x)]
+      (recur (cons (.getText x) acc)
+             p)
+      (cons (.getText x) acc))))
+ 
+(defn update-path! [the-path nd]
+  (when-not (.hasChildren nd) ;we have a path!
+    (reset! the-path (get-path nd))))
+
+(defrecord path-widget [tree path])
+(defn path [db]
+  (let [tr (init-tree db)
+        the-path (atom nil)
+        _  (. tr  (addEventListener goog.events.EventType.CHANGE
+              (fn [e] (update-path! the-path (.getSelectedItem tr)))))]
+    (->path-widget tr the-path)))                                  
+
+(comment
+  (def evt (atom nil))
+  (def the-tree (atom (init-tree)))      
+  
+  (. @the-tree
+     (addEventListener goog.events.EventType.CHANGE
+                       (fn [e] (do
+                                 (reset! evt e)
+                                 (println "tree-changed!")))))
+  )
 
 (defn render! [ctrl el]
   (. ctrl (render (element el))))
+

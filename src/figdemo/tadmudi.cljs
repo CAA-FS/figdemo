@@ -98,8 +98,6 @@
 ;;  -Select an SRC
 ;;    -Select a Supply [ac rc]
 
-
-
 ;;one common operation will be...
 ;;find left sample,
 ;;find right sample?
@@ -134,6 +132,18 @@
   (def recs (tbl/lines->records (clojure.string/split-lines @res)
                figdemo.tadmudi/tadschema))
   (def db (figdemo.tadmudi/tad-db recs))
+
+  (defn db->pathdb [db]
+    (if (map? db) 
+      (for [[k v] (seq db)]    
+        (if (map? v)
+          {:name (str k)
+           :childNodes (vec (db->pathdb v))}
+          {:name (str k)
+           :url "blah"}))
+      {:name (str db)
+       :url "blah"}))
+        
 )
 
 (defn td [])
