@@ -80,3 +80,18 @@
                                   (assoc acc fld (parser fld (aget xs idx))))
                               {} idx->fld))))))
         
+
+(defn records->tab-delimited [xs]
+  (let [hd   (first xs)
+        flds (vec (keys hd))
+        sep  (str \tab)
+        header-record (reduce-kv (fn [acc k v]
+                                   (assoc acc k
+                                          (name k)))
+                                 hd
+                                 hd)]
+    (clojure.string/join \n
+      (concat [header-record]
+              (map (fn [r] (clojure.string/join sep
+                                                (map r flds))))
+                   (rest xs)))))

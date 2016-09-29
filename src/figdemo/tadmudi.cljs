@@ -80,11 +80,15 @@
 
 ;;we can query the db to find samples.
 (defn find-sample [db [src [pol demand atype] rtype [ac rc]]]
-  (for [[p r]  (->> [src [pol demand atype] rtype [ac rc]]
+  (for [[p xs]  (->> [src [pol demand atype] rtype [ac rc]]
                      (get-in db)
-                     (group-by :Period))]
+                     (group-by :Period))
+        r xs]
     [p (:Response r)]))
 
+;;what if we can't find a sample?
+(defn sample-neighbors [db [src [pol demand atype] rtype [ac rc]]]
+  (get-in db [src [pol demand atype] rtype]))
 
 ;;we could replace this with core.logic
 ;;relations...
@@ -125,7 +129,6 @@
 
 ;;given a set of compatible-samples...
 ;;how can we interpolate?
-
    
 (comment ;testing
   (def res  (io/file->lines (io/current-file)))
@@ -133,16 +136,43 @@
                figdemo.tadmudi/tadschema))
   (def db (figdemo.tadmudi/tad-db recs))
 
+  (def lits #{"[" "{" "#" ":"})
+  (defn read-path [xs]
+    (for [x xs]
+      (if (lits (aget x 0)) (cljs.reader/read-string x)
+          x)))
+        
   (defn db->pathdb [db]
     (if (map? db) 
       (for [[k v] (seq db)]    
         (if (map? v)
-          {:name (str k)
+          {:name k;(str k)
            :childNodes (vec (db->pathdb v))}
-          {:name (str k)
+          {:name k;(str k)
            :url "blah"}))
-      {:name (str db)
+      {:name db; (str db)
        :url "blah"}))
+
+  (defn make-sample-data []
+    (for [src ["770200R00" 
+               "Bilbo"
+               "Garth"
+               "Jabberwocky"]
+          policy ["MaxUtilization"
+                  "Rotational"]
+          demand ["Steady State"
+                  "SS + Surge"]
+          atype ["Dynamic"]
+          ac-inv (range 10 20 3)
+          rc-inv (range 4  18 4)
+          r-type ["Fill" "Surplus"]
+          p ["PreSurge" "Surge" "PostSurge"]]
+      {:SRC src :ACInventory ac-inv :RCInventory rc-inv :SimulationPolicy policy
+       :DemandSignal demand :AnalysisType atype :ResponseType r-type :Period p
+       :Response (case r-type
+                   "Fill"  (rand)
+                   (rand-int 10))}))
+    
         
 )
 
