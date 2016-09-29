@@ -90,8 +90,7 @@
                                           (name k)))
                                  hd
                                  hd)]
-    (clojure.string/join \n
-      (concat [header-record]
+    (clojure.string/join \newline
               (map (fn [r] (clojure.string/join sep
-                                                (map r flds))))
-                   (rest xs)))))
+                                                (map r flds)))
+                   (concat [header-record]  xs)))))

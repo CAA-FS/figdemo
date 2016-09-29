@@ -125,6 +125,22 @@
 ;;The records are keyed by period and response.
 
 ;;
+(def lits #{"[" "{" "#" ":"})
+(defn read-path [xs]
+  (for [x xs]
+    (if (lits (aget x 0)) (cljs.reader/read-string x)
+        x)))
+
+(defn db->pathdb [db]
+  (if (map? db) 
+    (for [[k v] (seq db)]    
+      (if (map? v)
+        {:name k
+         :childNodes (vec (db->pathdb v))}
+        {:name k
+         :url "blah"}))
+    {:name db
+     :url "blah"}))
 
 
 ;;given a set of compatible-samples...
@@ -136,22 +152,6 @@
                figdemo.tadmudi/tadschema))
   (def db (figdemo.tadmudi/tad-db recs))
 
-  (def lits #{"[" "{" "#" ":"})
-  (defn read-path [xs]
-    (for [x xs]
-      (if (lits (aget x 0)) (cljs.reader/read-string x)
-          x)))
-        
-  (defn db->pathdb [db]
-    (if (map? db) 
-      (for [[k v] (seq db)]    
-        (if (map? v)
-          {:name k;(str k)
-           :childNodes (vec (db->pathdb v))}
-          {:name k;(str k)
-           :url "blah"}))
-      {:name db; (str db)
-       :url "blah"}))
 
   (defn make-sample-data []
     (for [src ["770200R00" 
@@ -160,8 +160,8 @@
                "Jabberwocky"]
           policy ["MaxUtilization"
                   "Rotational"]
-          demand ["Steady State"
-                  "SS + Surge"]
+          demand ["SteadyState"
+                  "SS+Surge"]
           atype ["Dynamic"]
           ac-inv (range 10 20 3)
           rc-inv (range 4  18 4)
