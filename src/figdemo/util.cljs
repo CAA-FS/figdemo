@@ -3,7 +3,10 @@
     (:require [cljs.core.async :as async]
               [goog.dom :as dom]
               [goog.events :as events]
+              ;;note, you have to require google classes...
               [goog.ui.ComboBox]
+              [goog.ui.Select]
+              [goog.ui.Slider]
               [goog.ui.tree.TreeControl]))
 
 
@@ -200,9 +203,6 @@
 ;;So we have several ordered sets of values.
 ;;Alphabet [a b c] Evens [0 1 3] Odds [2 4 6]
 
-(comment
-
-   
 
   ;;we can probably create a generic interface
   ;;for all this goog.ui stuff, akin to our
@@ -256,15 +256,86 @@
           _  (doseq [i items]
                (add! cb  i))]
      cb))
- 
+
+ (extend-type goog.ui.Select
+   IWidgetable
+   (as-widget [o] o)
+   IWidget
+   (add-child [w c]
+     (doto w (. (addItem (->item c)))))
+   IDeref
+   (-deref [o] (.getValue o))
+   ICounted
+   (-count [o] (.getItemCount o))
+   ILookup
+   (-lookup ([o k] (.getItemAt o k))
+            ([o k not-found]
+             (try (.getItemAt o k) 
+                  (catch :default not-found))))
+   )
+(defn ->select [items & {:keys [id] :or {id "selection"}}]
+  (let [s (goog.ui.Select.)
+        _ (.setId s id)
+        _ (doseq [i items]
+            (add! s i))]
+    s))
+
+
+ (extend-type goog.ui.Slider
+  ; IWidgetable
+  ; (as-widget [o] o)
+  ; IWidget
+  ; (add-child [w c]
+  ;   (doto w (. (addItem (->item c)))))
+   IDeref
+   (-deref [o] (.getValue o))
+   ;; ICounted
+   ;; (-count [o] (.getItemCount o))
+   ;; ILookup
+   ;; (-lookup ([o k] (.getItemAt o k))
+   ;;          ([o k not-found]
+   ;;           (try (.getItemAt o k) 
+   ;;                (catch :default not-found))))
+   )
+
+;;Note: the visual stylings don't show anything by default,
+;;unless you style the elements according to css/slider.css
+;;It just looks like a blank div in this case...
+(defn ->vslider [w & {:keys [on-change]}]
+  (let [s2   (doto (goog.ui.Slider.)
+                 (.setOrientation
+                  goog.ui.Slider.Orientation.VERTICAL)
+                 (.setStep nil)
+                 ) 
+        _     (.createDom  s2) ;;this is for programatically creating the DOM el.
+        el    (.getElement s2)
+        style (aget el "style")
+        _     (aset style "width"  "20px")
+        _     (aset style "height" "200px")
+        _ (when on-change
+            (. s2 (addEventListener goog.ui.Component.EventType.CHANGE
+                                    on-change)))]
+    s2))        
+                                      
+
  ;;Probably want some helpers like as-component. 
- (defn control?   [x]  (instance? goog.ui.Control x))
- (defn component? [x]  (instance? goog.ui.Component x))
+(defn control?   [x]  (instance? goog.ui.Control x))
+(defn component? [x]  (instance? goog.ui.Component x))
+
+
+
  
  (defn ^goog.ui.Control ->control [x]
-   (if (or (control? x) (component? x)) x 
+   (if  (control? x) x 
        (goog.ui.Control. (str x))))
- 
+
+ ;;Okay....so what I learned about goog....
+ ;;Containers are cool, EXCEPT they only work with things that
+ ;;subclass goog.ui.Control....which combobox DOES NOT....
+ ;;We can approximate combox, though, by using goog.ui.Select,
+ ;;which provides a selection model with a menu button.
+ ;;Select subclasses control, so it works...
+
  ;;Yeah, we're going to ditch the whole html shitsandwhich...
  ;;Stick in cljs as much as possible, use combinators to
  ;;declare things easier...
@@ -279,12 +350,15 @@
               (let [c  (->control x)
                      _ (doto c
                         ;(.addClassName class)
-                        (.setId x)
+                      ;  (.setId x)
                         ;(.setDispatchTransitionEvents
                         ; goog.ui.Component.State.ALL true)
                         )]
                 (. hc (addChild c true))))]
      hc))
+
+(comment
+
 ;; // Programmatically create a horizontal container.
    ;;  var hc = new goog.ui.Container(goog.ui.Container.Orientation.HORIZONTAL);
    ;;  hc.setId('Horizontal Container');

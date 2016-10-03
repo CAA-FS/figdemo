@@ -1,32 +1,3 @@
-/* some style */
-.goog-tree-children {
-    background-repeat: repeat-y;
-    background-image: url("I.png") !important;
-    background-position-y: 1px !important; /* IE only */
-    font: icon;
-}
-
-.goog-tree-icon {
-    background-image:url("tree.png");
-}
-
-.goog-tree-item-label {
-    font: bold 10pt Tahoma, Arial, sans-serif;
-    color: #444 /* #333; */
-    text-decoration: none;
-}
-
-.goog-tree-item-label a {
-    font: normal 10pt Tahoma, Arial, sans-serif;
-    color: #333;
-    text-decoration: none;
-}
-
-.goog-tree-item-label a:hover {
-    color: #00f;
-    text-decoration: underline;
-}
-
  .goog-slider-vertical,
     .goog-slider-horizontal {
       background-color: ThreeDFace;
