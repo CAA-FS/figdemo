@@ -100,11 +100,22 @@
 
 ;;Given our neighboring samples...
 ;;we can get the xy-pairs from them...
-(defn nearest-samples [db k]
+;;we can probably cache the results too...specifically when we compute
+;;the xy pairs.  All of the surface definitions (i.e. the meshes)
+;;are grouped by xy (hence the reason for our tree).
+(defn nearest-samples
+  "Given a database of points, where k provides a vector of keys into 
+   a map, db, where the leaves contain sequences (typically vectors) of 
+   records, surfaces, and where the last element of k is a point [x y], abstractly 
+   'projects' [x y] onto each s within surfaces, returning a sequence of 
+   [surface-name [x y z]] values.  z is either computed directly, if present,
+   or interpolated from a plane derived from a nearest-neighbors query based 
+   on [x y].  Surface records are maps with conforming to {:keys [Response]}."
+  [db k]
   (let [p         (last k)
         [x y]     p
         samples   (sample-neighbors db k)
-        ;;this gives us 3 [x y] points to triangluate
+        ;;this gives us 3 [x y] points to triangulate
         ;;we need [x y z] though.  In this case, there
         ;;are multiple responses, so multiple z sets.
         tri       (proj/nearest p (keys samples))
@@ -118,23 +129,11 @@
                                          coords))) {} zs)
         ;;we can project our point onto each plane now.
         ]
-    (-> 
-     (for [[period plane] planes]
-       [period [x y (proj/onto-plane p (proj/->plane-vec plane))]])
-     (vec)
-     (with-meta {:planes planes
-                 :tri tri})))) 
-        
-    ;; (for [
-    ;;     project   
-    ;;                 (onto-plane p
-    ;;                    (->plane-vec
-    ;;                             (nearest [ac rc] data)))]
-    
+    (-> (for [[period plane] planes]
+          [period (proj/onto-plane p (proj/->plane-vec plane))]))))
 
 ;;we could replace this with core.logic
 ;;relations...
-
 
 ;;Note:  I'm operating off the assumption
 ;;that like-samples exist between cases...
@@ -160,16 +159,17 @@
                          true))]
       [[other-src case restype q] xs])))
 
+;;Now that we have interactive interpolation...
+;;Can we yield surfaces (trends) that can
+;;be consumed by other processes?
+
+
+
 ;;we have a couple of operations that we'd like to
 ;;perform:
 ;;browse sample(s)...
 ;;A sample points to a collection of records.
 ;;The records are keyed by period and response.
-
-;;
-
-
-;;so now, as
 
 ;;given a set of compatible-samples...
 ;;how can we interpolate?
