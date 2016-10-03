@@ -47,7 +47,7 @@
 ;;euclidean distance func
 (defn distance-2d [[x1 y1 ]
                    [x2 y2 ]]  
-  (Math/sqrt (+ (square (- x2 y1))
+  (Math/sqrt (+ (square (- x2 x1))
                 (square (- y2 y1)))))
 
 ;;find the 3 nearest points to define

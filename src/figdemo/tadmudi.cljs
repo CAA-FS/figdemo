@@ -78,6 +78,12 @@
             (with-meta {} {:domains (distinct-fields xs)})
             xs)))
 
+;;io 
+(defn txt->tad-db [txt]
+  (-> (clojure.string/split-lines txt)
+      (tbl/lines->records figdemo.tadmudi/tadschema)
+      (figdemo.tadmudi/tad-db)))
+
 ;;we can query the db to find samples.
 (defn find-sample [db [src [pol demand atype] rtype [ac rc]]]
   (for [[p xs]  (->> [src [pol demand atype] rtype [ac rc]]
@@ -96,7 +102,7 @@
 ;;we can get the xy-pairs from them...
 (defn nearest-samples [db k]
   (let [p         (last k)
-        [x y]   p
+        [x y]     p
         samples   (sample-neighbors db k)
         ;;this gives us 3 [x y] points to triangluate
         ;;we need [x y z] though.  In this case, there
@@ -112,8 +118,12 @@
                                          coords))) {} zs)
         ;;we can project our point onto each plane now.
         ]
-    (for [[period plane] planes]
-      [period [x y (proj/onto-plane p (proj/->plane-vec plane))]])))
+    (-> 
+     (for [[period plane] planes]
+       [period [x y (proj/onto-plane p (proj/->plane-vec plane))]])
+     (vec)
+     (with-meta {:planes planes
+                 :tri tri})))) 
         
     ;; (for [
     ;;     project   
@@ -157,22 +167,6 @@
 ;;The records are keyed by period and response.
 
 ;;
-(def lits #{"[" "{" "#" ":"})
-(defn read-path [xs]
-  (for [x xs]
-    (if (lits (aget x 0)) (cljs.reader/read-string x)
-        x)))
-
-(defn db->pathdb [db]
-  (if (map? db) 
-    (for [[k v] (sort-by first (seq db))]    
-      (if (map? v)
-        {:name k
-         :childNodes (vec (db->pathdb v))}
-        {:name k
-         :url "blah"}))
-    {:name db
-     :url "blah"}))
 
 
 ;;so now, as
@@ -181,11 +175,31 @@
 ;;how can we interpolate?
    
 (comment ;testing
-  (def res  (io/file->lines (io/current-file)))
-  (def recs (tbl/lines->records (clojure.string/split-lines @res)
-               figdemo.tadmudi/tadschema))
-  (def db (figdemo.tadmudi/tad-db recs))
+  (def res      (io/file->lines (io/current-file)))
+  (def db       (txt->tad-db @res))
+  ;;this gives us a renderable widget ala util/render! 
+  (def the-path (util/db->path db :id "the-tree"))
+  ;;given the-path, we can
+  (util/render! the-path "the-tree")
 
+  ;;Note....there's nothing stopping us from creating
+  ;;a like-view, where we have a tablified version of the
+  ;;tree, and instead of selecting paths into the tree,
+  ;;we just filter based off the table.
+
+  
+  ;;now we have access to an interactive path-selector
+  ;;when we select leaves in the tree, the value for
+  ;;(:path the-path) is updated automagically.
+  ;;One thing we're "not" doing is rendering
+  ;;the same database into two different views...
+  ;;In other words, you have to build to complete
+  ;;tree controls that act as "cursors" into the
+  ;;selected path of the tree.
+  ;;Note: we can create multiple tree controls,
+  ;;and subscribe them to path selection...
+  ;;Actually, we'll want multiple discrete paths,
+  ;;so it's okay to have different widgets...
 
   (defn make-sample-data []
     (for [src ["770200R00" 
