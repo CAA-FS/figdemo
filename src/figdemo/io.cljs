@@ -18,7 +18,8 @@
        (array-seq)
        ))
 
-(defn current-file [] (first (input->files)))
+(defn current-file [& {:keys [el] :or {el "file"}}]
+  (first (input->files :el el)))
 
 (defn input->filenames [& {:keys [el] :or {el "file"}}]
   (->> (input->files :el el)

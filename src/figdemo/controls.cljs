@@ -26,6 +26,11 @@
 (def the-tree (dom/getElement "the-tree"))
 ;;from david nolen's tutorial. we'll
 ;;comment this out in production.
+
+;;stuff for loading/navigating tables
+(def table-browser (dom/getElement "tad-file"))
+(def load-tad-button  (dom/getElement "load-tad-button"))
+
 (comment 
 (let [clicks (util/listen draw-button "click")]
   (go (while true

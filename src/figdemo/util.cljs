@@ -487,6 +487,36 @@
       (path :id id)))
 
 (comment
+  ;;we'd like to unroll the levels of a database
+  ;;and define a list of sets, one for each level of
+  ;;the db, which we can use as a specification for
+  ;;defining a shelf of controls that will allow us
+  ;;to navigate down to a selection of records in
+  ;;the db.
+  ;;Another way to do this is via successive filtering.
+  ;;May be easier.  We read in the table, and filter
+  ;;the records according to the path.
+  ;;At each stage, we update the menu items to only
+  ;;show what's available at the next level?  
+  (defn db-levels [root]
+    ;;this is just a bfs of the keys of the map.
+    ;;we can accomplish this using a simulated q.
+    ;;note: another way we can do this is dfs the
+    ;;keys, collecting by depth.
+    ;;starting at the root map.
+    (when (map? root) ;;branch
+      (when-let [xs (keys root)]
+        (if-let [children (seq (filter map? (vals root)))]
+          {:keys xs :children (map db-levels children)}
+          {:keys xs})))
+      
+    )
+  (defn path->selector [p])
+    
+    
+  )
+
+(comment
   (def evt (atom nil))
   (def the-tree (atom (init-tree)))      
   
