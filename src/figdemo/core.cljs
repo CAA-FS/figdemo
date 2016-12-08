@@ -61,7 +61,7 @@
   ;;optionally touch your app-state to force rerendering depending on
   ;;your application
   ;;(swap! app-state update-in [:__figwheel_counter] inc)
-  (swap! app-state assoc :draw draw-current-chart
+  (swap! app-state assoc :draw     draw-current-chart
                          :load-tad load-tad))
 
 ;;setup our button click to trigger rendering the chart
@@ -77,31 +77,37 @@
   [:div {:id "highchart-app"}
    [:h2 "This is all reactive..."]
    [:p "We'll show some interaction here too, charts and sliders."]
-  ;; [:div {:id "tad"}
-  ;;  [:form 
-  ;;   "TADMUDI-file:"   [:input {:type "file"
-  ;;                              :name "tad-file"
-  ;;                              :id   "tad-file"}]
-  ;;   "Load-TADMUDI:"   [:input {:type "button"
-  ;;                              :name "load-tad-button"
-  ;;                              :id "load-tad-button"}]]]
-  ;; [:div {:id "the-tree"}]
-  ;; ;;where we'll store our gannt chart input and other stuff
-  ;; [:div {:id "ganttdemo"}
-  ;;  ;;let's work on replacing this with some hiccup html
-  ;;  [:form 
-  ;;   "GanttFile:"    [:input {:type "file" :name "file" :id "file"}]
-  ;;   "DrawGantt:"    [:input {:type "button" :name "drawchart" :id "drawchart"}]]
-  ;;  [:table {:align  "left"}
-  ;;   [:tr   {:valign "top" }
-  ;;    [:td
-  ;;     [:div {:id "the-table" :style "width: 700px; height: 300px;"}]]         
-  ;;    [:td
-  ;;     [:div {:id "the-chart" :style "align: center; width: 1400px; height: 300px;"}]]]]
-   ;[:div {:id "bar-chart"}
+   [:div {:id "tad"}
+    "A form"
+    [:form 
+     "TADMUDI-file:"   [:input {:type "file"
+                                :name "tad-file"
+                                :id   "tad-file"}]
+     "Load-TADMUDI:"   [:input {:type "button"
+                                :name "load-tad-button"
+                                :id "load-tad-button"}]]]
+   [:div {:id "the-tree"}
+    "some text"]
+   ;;where we'll store our gannt chart input and other stuff
+   [:div {:id "ganttdemo"}
+    "Our gannt input form..."
+    ;;let's work on replacing this with some hiccup html
+    [:form 
+     "GanttFile:"    [:input {:type "file" :name "file" :id "file"}]
+     "DrawGantt:"    [:input {:type "button" :name "drawchart" :id "drawchart"}]]
+    [:table #_{:align  "left"}
+     [:tbody
+      [:tr   #_{:valign "top" }
+       [:td
+        [:div {:id "the-table" :style {:width "700px" :height "300px"}}]]         
+       [:td
+        [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}]]]]]
+    [:div {:id "bar-chart"}
      [high/home]]
-;  ]
-)
+    [:div {:id "bmi"}
+     [bmi/bmi-component]]
+    ]]
+  )
 
 ;;just an example of rendering react components to dom targets.
 (defn mount-it
