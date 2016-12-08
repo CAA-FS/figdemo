@@ -177,6 +177,9 @@
 (comment ;testing
   (def res      (io/file->lines (io/current-file)))
   (def db       (txt->tad-db @res))
+
+
+  (def db (:db @figdemo.core/app-state))
   ;;this gives us a renderable widget ala util/render! 
   (def the-path (util/db->path db :id "the-tree"))
   ;;given the-path, we can

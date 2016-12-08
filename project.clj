@@ -10,7 +10,13 @@
                  ;[org.clojure/clojurescript "1.9.89"]
                  [org.clojure/clojurescript "1.9.225"]
                  [org.clojure/core.async "0.2.385"
-                  :exclusions [org.clojure/tools.reader]]]
+                  :exclusions [org.clojure/tools.reader]]
+                 ;;fixes slider issues on ie.
+                 [reagent "0.6.0"]                 
+                 [cljsjs/react-slider "0.6.1-0"]
+                 ;;for charting examples.
+                 [cljsjs/highcharts "5.0.4-0"]
+                 [cljsjs/vega-lite "1.2.0-0"]]
 
   :plugins [[lein-figwheel "0.5.4-7"]
             [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]

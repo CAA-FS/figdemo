@@ -26,6 +26,8 @@
 (def the-tree (dom/getElement "the-tree"))
 ;;from david nolen's tutorial. we'll
 ;;comment this out in production.
+(def high (dom/getElement "high"))
+
 
 ;;stuff for loading/navigating tables
 (def table-browser (dom/getElement "tad-file"))
