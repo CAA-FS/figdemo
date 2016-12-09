@@ -12,7 +12,8 @@
             [figdemo.bmi  :as bmi]
             [figdemo.high :as high]
             [reagent.core :as r]
-            [re-com.core   :refer [h-box gap v-box hyperlink-href p]]))
+            [re-com.core   :refer [h-box gap v-box hyperlink-href p] :as recom]
+            [re-com.util   :refer [item-for-id]]))
 
 (enable-console-print!)
 
@@ -47,8 +48,9 @@
   (go (let [xs (async/<!    (io/file->lines!! (io/current-file :el source)))
             db (tad/txt->tad-db xs)            
             ;;this gives us a renderable widget ala util/render! 
-            the-path (util/db->path db :id "the-tree")]
-        (swap! app-state assoc :path the-path
+           ; the-path (util/db->path db :id "the-tree")
+            ]
+        (swap! app-state assoc ;:path the-path
                :db db)
         ;;given the-path, we can
         #_(util/render! the-path "the-tree")
@@ -76,6 +78,8 @@
 (util/listen! controls/load-tad-button "click" (fn [_] ((:load-tad @app-state))))
 
 ;;we can actually refactor these into "selector" components.
+;;so, when we select this, we'll get the tadmudi db loaded up.
+;;which creates a :db piece of our app-state.
 (defn tad-selector []
    [:div {:id "tad-selector"}
        "A form"
@@ -89,7 +93,74 @@
                                    :id   "load-tad-button-r"
                                    :on-click (fn [e]
                                                (do (load-tad :source "tad-file-r"))
-                                                   (println "loading-tad-db!!"))}]]])
+                                               (println "loading-tad-db!!"))}]]])
+
+;;currently, we have a path-tree.
+;;what we'd really like to do is create a list of selection-boxes.
+;;that allow us to select a path in the database.
+;;expected to have {:id :label [:group?]}
+
+;;adapted from the re-com tutorial.
+(defn selection-list [choice-seq & {:keys [data field] :or {field "Selected Value:"}}]
+  (let [selected-choice-id (or data (r/atom nil))]
+      (fn [] 
+       [v-box 
+        :gap      "10px" 
+        :children [#_[p "The dropdown below shows how related choices can be displayed in groups."
+                      "In this case, several country related groups. e.g. 'EN COUNTRIES'."] 
+                   #_[p "This feature is triggered if any choice has a " [:code ":group"]
+                    " attribute. Typically all choices will have a " [:code ":group"]
+                    " or none will. It's up to you to ensure that choices with the same "
+                    [:code ":group"] " are adjacent in the vector."] 
+                   #_[p "Because :model is initially nil, the " [:code ":placeholder"] " text is initially displayed."] 
+                   #_[p [:code ":max-width"] " is set here to make the dropdown taller."] 
+                   [h-box 
+                    :gap      "10px" 
+                    :align    :center 
+                    :children [[recom/single-dropdown 
+                                :choices     choice-seq 
+                                :model       selected-choice-id 
+                                :title?      true 
+                                :placeholder "Choose a Value" 
+                                :width       "300px" 
+                                :max-height  "400px" 
+                                :filter-box? false 
+                                :on-change   #(reset! selected-choice-id %)]
+                               [:div 
+                                [:strong field] 
+                                (if (nil? @selected-choice-id) 
+                                  "None" 
+                                  (str (:label (item-for-id @selected-choice-id choice-seq))
+                                       " [" @selected-choice-id "]"))]]]]])))
+
+;;we'd like to define a component that can take a seq of [field choice-seq]
+;;and construct a control that allows one to construct selection by choosing
+;;from multiple drop-down boxes to derive a key.
+(defn menu-component [menu-seq]
+  (let [db (into {} (for [[id choice-seq] menu-seq]
+                      (let [data (r/atom nil)]
+                        [id data])))]
+    (fn []
+      [v-box
+       :gap "10px"
+       :children
+       (into []
+         (for [[id choice-seq] menu-seq]
+           [(selection-list choice-seq :data (get db id) :field id)]))])))
+          
+(def fake-menu-data
+  [["SRC" [{:id 1 :label "SRC1"}
+           {:id 2 :label "SRC2"}]]
+   ["Policy" [{:id 1 :label "Policy1"}
+              {:id 2 :label "Policy2"}]]
+   ["Scenario" [{:id 1 :label "S1"}
+                {:id 2 :label "S2"}]]])
+
+;(defn compute-menu [db]
+;  (
+    
+    
+    
 
 (defn gantt-selector []
   [:div {:id "gantt-selector"}
@@ -113,7 +184,10 @@
       [:p "We'll show some interaction here too, charts and sliders."]
       [tad-selector]
       [:div {:id "the-tree"}
-       tree-node]
+       #_tree-node
+       #_[selection-list [{:id 1 :label "A"}
+                        {:id 2 :label "B"}]]
+       [menu-component fake-menu-data]]
       ;;where we'll store our gannt chart input and other stuff
       [gantt-selector]
       ;;look into using an h-box alternately.
