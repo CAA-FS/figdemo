@@ -12,7 +12,10 @@
                  [org.clojure/core.async "0.2.385"
                   :exclusions [org.clojure/tools.reader]]
                  ;;fixes slider issues on ie.
-                 [reagent "0.6.0"]                 
+                 [reagent "0.6.0"]
+                 ;;ui widgets
+                 [re-com "0.9.0"]
+                 ;;external components
                  [cljsjs/react-slider "0.6.1-0"]
                  [cljsjs/rc-slider "4.0.1-0"] ;;alt.
                  ;;for charting examples.

@@ -1,6 +1,7 @@
 (ns figdemo.bmi
   (:require [reagent.core :as r]
-            [cljsjs.react-slider]))
+            [cljsjs.react-slider]
+            [figdemo.util :as util]))
 
 ;;Update: the assumably idiomitic way to do this in cljs.
 (defn weak-fix [& input]
@@ -21,32 +22,6 @@
    :class-name  :slider
    :handle-class-name :handle
    :with-bars    true})
-
-(defn slider-opts [& {:keys
-                      [min
-                       max
-                       step
-                       min-distance
-                       default-value
-                       value
-                       orientation
-                       class-name
-                       handle-class-name
-                       with-bars
-                       on-before-change
-                       on-after-change
-                       on-change
-                       on-slider-click]
-                      :as input}]
-  (merge slider-defaults input))
-
-(def default-opts (slider-opts))
-(def Slider (r/adapt-react-class js/ReactSlider))
-
-(defn ->slider [min max & opts]
-  [Slider (apply slider-opts (into [:min min :max max] opts))
-       ])
-                          
 ;; min {number} default: 0
 
 ;; ;;The minimum value of the slider.
@@ -114,24 +89,33 @@
 
 ;; ;;Returns the current value of the slider, which is a number in the case of a single slider, or an array of numbers in case of a multi slider.
 
-;;deviating from the original example...
-(defn calc-bmi [bmi-data]
-  (let [{:keys [height weight bmi] :as data} @bmi-data
-        h (/ height 100)]
-    (if (nil? bmi)
-      (assoc data :bmi    (/ weight (* h h)))
-      (assoc data :weight (* bmi h h)))))
+(defn slider-opts [& {:keys
+                      [min
+                       max
+                       step
+                       min-distance
+                       default-value
+                       value
+                       orientation
+                       class-name
+                       handle-class-name
+                       with-bars
+                       on-before-change
+                       on-after-change
+                       on-change
+                       on-slider-click]
+                      :as input}]
+  (merge slider-defaults input))
 
-;;Original
-;;See if we can fix this to use react-range.
-(defn slider [param value min max bmi-data]
-    [:input {:type "range" :value value :min min :max max
-             :style {:width "100%"}
-             :on-change (fn [e]
-                          (swap! bmi-data assoc param (.-target.value e))
-                          (when (not= param :bmi)
-                            (swap! bmi-data assoc :bmi nil)))}])
-(defn react-slider
+(def default-opts (slider-opts))
+(def Slider (r/adapt-react-class js/ReactSlider))
+
+(defn ->slider [min max & opts]
+  [Slider (apply slider-opts (into [:min min :max max] opts))
+   ])
+
+;;failed attempt at using rc-slider.
+#_(defn react-slider
   ([param value min max bmi-data]
    (->slider min
              max 
@@ -140,8 +124,55 @@
                           (when (not= param :bmi)
                             (swap! bmi-data assoc :bmi nil)))))
   ([param value min max] (react-slider value min max (r/atom {:height 180 :weight 80}))))
+                          
+
+;;deviating from the original example...
+(defn calc-bmi [bmi-data]
+  (let [{:keys [height weight bmi] :as data} @bmi-data
+        h (/ height 100)]
+    (if (nil? bmi)
+      (assoc data :bmi    (/ weight (* h h)))
+      (assoc data :weight (* bmi h h)))))
+
+(defn range-opts
+  "Inconvenience function to help us get ranges working properly on ie11."
+  [& opts]
+  (let [m (apply hash-map opts)]
+    (-> (if (and (util/ie11?) (:on-change m))
+          (-> m (assoc :on-mouse-move (:on-change m)) (dissoc :on-change))
+          m)
+        (assoc :type "range"))))
+
+;;Specialized slider that works around ie11 funk with the html range
+;;widget.
+(defn slider [param value min max bmi-data]
+    [:input (range-opts :type "range" :value value :min min :max max
+                        :style {:width "100%"}
+                        ;;almost works.
+                        :on-change  (fn [e]
+                                      (swap! bmi-data assoc param (.-target.value e))
+                                      (when (not= param :bmi)
+                                 (swap! bmi-data assoc :bmi nil))))])
+
+;;A slider that doesn't accept user input.
+;;note the use of read-only.
+(defn frozen-slider [param value min max bmi-data]  
+  [:input {:type "range" :value value :min min :max max
+           :style {:width "100%"}
+           :read-only true
+          ; :disabled true
+           }])
+
+;;bmi-data  {:height 100
+;;           :weight 100}
+;;when slider's value changes, updates the associated parameter in
+;;bmi-data.
+;;Every time bmi-component changes, bmi is recalculated
+;;bmi is calculated based on the current value o
+  
 
 
+ 
 ;;This is a "form-2" component, where we provide a render
 ;;function (basically a 0-arg fn), to display the component..
 ;;we prep it with some local state.
@@ -167,8 +198,40 @@
          [:div {:style {:width width}}
           "BMI: " (int bmi) " "
           [:span {:style {:color color}} diagnose]
-          [slider :bmi bmi 10 50 bmi-data]]]))))
+          [frozen-slider :bmi bmi 10 50 bmi-data]]]))))
+
+;;let's try to generalize bmi-component.
+;;we have a component that has 2 degrees of freedom.
+;;similar to our x,y coords.
+;;We have a function that computes bmi...
+
+(defn bmi-component2 []
+  (let [bmi-data (r/atom {:height 180 :weight 80})
+        width    400 ;call this once.
+        bmi->colored-diagnosis (fn [bmi]
+                                 (cond
+                                   (< bmi 18.5) ["orange" "underweight"]
+                                   (< bmi 25)   ["inherit" "normal"]
+                                   (< bmi 30)   ["orange" "overweight"]
+                                   :else ["red" "obese"]))]
+                  
+    (fn [] ;;everytime we update the component, we call this.
+      (let [{:keys [weight height bmi]} (calc-bmi bmi-data)
+            [color diagnose] (bmi->colored-diagnosis bmi)]
+        [:div 
+         [:h3 "BMI calculator"]
+         
+         [:div {:style {:width width}} 
+          "Height: " (int height) "cm"
+          [slider :height height 100 220 bmi-data]]
+         [:div {:style {:width width}}
+          "Weight: " (int weight) "kg"
+          [slider :weight weight 30 150 bmi-data]]
+         [:div {:style {:width width :style color}}
+          "BMI: " (int bmi) " "
+          [:span {:style {:color color}} diagnose] ;;maps a color to a response.          
+          [frozen-slider :bmi bmi 10 50 bmi-data]]]))))
 
 (defn ^:export run []
-  (r/render [bmi-component]
+  (r/render [bmi-component2]
             (js/document.getElementById "app")))

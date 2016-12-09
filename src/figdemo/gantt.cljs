@@ -95,6 +95,28 @@
                     (js/google.visualization.DataTable.)
                     fld-types)))
 
+
+;;component-izing our google stuff.
+#_(defn my-component
+  [x y z]  
+  (let [some (local but shared state)      ;; <-- closed over by lifecycle fns
+        can  (go here)]   
+     (reagent/create-class                 ;; <-- expects a map of functions 
+       {:component-did-mount               ;; the name of a lifecycle function
+        #(println "component-did-mount")   ;; your implementation
+
+        :component-will-mount              ;; the name of a lifecycle function
+        #(println "component-will-mount")  ;; your implementation
+
+        ;; other lifecycle funcs can go in here
+
+        :display-name  "my-component"  ;; for more helpful warnings & errors
+
+        :reagent-render        ;; Note:  is not :render
+         (fn [x y z]           ;; remember to repeat parameters
+            [:div (str x " " y " " z)])})))
+
+
 (defn conj-rows [tbl xs]
   (doseq [r   (->> xs
                    (map clj->js))]

@@ -15,6 +15,22 @@
 ;;Utils
 ;;=====
 
+;;Helper to detect IE11
+;;Had to do this since IE11 handles html5 ranges
+;;wierd...
+
+(defn ie11?
+  "Detects if the browser is actually ie11, which is a common target for 
+   some apps."
+  []
+  (let [nv  (.-userAgent js/navigator)
+        tri (re-find #"Trident" nv)
+        eleven (re-find #"rv[ :]11" nv)]
+    (when (and (not (not tri))
+               eleven)
+      true)))
+;    !!(navigator.userAgent.match(/Trident/) && navigator.userAgent.match(/rv[ :]11/));
+
 ;;alternately, is dom/isElement 
 (defn element? [obj] (instance? js/Element obj))
 ;;Note: we can use instance? just like in clojure.
