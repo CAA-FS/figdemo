@@ -14,6 +14,7 @@
                  ;;fixes slider issues on ie.
                  [reagent "0.6.0"]                 
                  [cljsjs/react-slider "0.6.1-0"]
+                 [cljsjs/rc-slider "4.0.1-0"] ;;alt.
                  ;;for charting examples.
                  [cljsjs/highcharts "5.0.4-0"]
                  [cljsjs/vega-lite "1.2.0-0"]]

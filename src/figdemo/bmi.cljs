@@ -7,6 +7,9 @@
   (let [m (merge {:x 0 :y 0 :min 0 :max 0}
                     (apply hash-map input))]
     m))
+
+;;we'd like to take this, and develop a simple component that can
+;;operate as a little control panel.
 (def slider-defaults 
   {:min 0 
    :max 100
@@ -111,9 +114,8 @@
 
 ;; ;;Returns the current value of the slider, which is a number in the case of a single slider, or an array of numbers in case of a multi slider.
 
-(def bmi-data (r/atom {:height 180 :weight 80}))
-
-(defn calc-bmi []
+;;deviating from the original example...
+(defn calc-bmi [bmi-data]
   (let [{:keys [height weight bmi] :as data} @bmi-data
         h (/ height 100)]
     (if (nil? bmi)
@@ -122,40 +124,50 @@
 
 ;;Original
 ;;See if we can fix this to use react-range.
-(defn slider [param value min max]
-  [:input {:type "range" :value value :min min :max max
-           :style {:width "100%"}
-           :on-change (fn [e]
-                        (swap! bmi-data assoc param (.-target.value e))
-                        (when (not= param :bmi)
-                          (swap! bmi-data assoc :bmi nil)))}])
+(defn slider [param value min max bmi-data]
+    [:input {:type "range" :value value :min min :max max
+             :style {:width "100%"}
+             :on-change (fn [e]
+                          (swap! bmi-data assoc param (.-target.value e))
+                          (when (not= param :bmi)
+                            (swap! bmi-data assoc :bmi nil)))}])
+(defn react-slider
+  ([param value min max bmi-data]
+   (->slider min
+             max 
+             :on-change (fn [e]
+                          (swap! bmi-data assoc param (.-target.getValue e))
+                          (when (not= param :bmi)
+                            (swap! bmi-data assoc :bmi nil)))))
+  ([param value min max] (react-slider value min max (r/atom {:height 180 :weight 80}))))
 
-(defn react-slider [param value min max]
- (->slider min
-           max 
-           :on-change (fn [e]
-                        (swap! bmi-data assoc param (.-target.getValue e))
-                        (when (not= param :bmi)
-                          (swap! bmi-data assoc :bmi nil)))))
+
+;;This is a "form-2" component, where we provide a render
+;;function (basically a 0-arg fn), to display the component..
+;;we prep it with some local state.
 (defn bmi-component []
-  (let [{:keys [weight height bmi]} (calc-bmi)
-        [color diagnose] (cond
-                          (< bmi 18.5) ["orange" "underweight"]
-                          (< bmi 25) ["inherit" "normal"]
-                          (< bmi 30) ["orange" "overweight"]
-                          :else ["red" "obese"])]
-    [:div
-     [:h3 "BMI calculator"]
-     [:div
-      "Height: " (int height) "cm"
-      [slider :height height 100 220]]
-     [:div
-      "Weight: " (int weight) "kg"
-      [slider :weight weight 30 150]]
-     [:div
-      "BMI: " (int bmi) " "
-      [:span {:style {:color color}} diagnose]
-      [react-slider :bmi bmi 10 50]]]))
+  (let [bmi-data (r/atom {:height 180 :weight 80})
+        width    400] ;call this once.    
+    (fn [] ;;everytime we update the component, we call this.
+      (let [{:keys [weight height bmi]} (calc-bmi bmi-data)
+            [color diagnose] (cond
+                               (< bmi 18.5) ["orange" "underweight"]
+                               (< bmi 25)   ["inherit" "normal"]
+                               (< bmi 30)   ["orange" "overweight"]
+                               :else ["red" "obese"])]
+        [:div 
+         [:h3 "BMI calculator"]
+         
+         [:div {:style {:width width}} 
+          "Height: " (int height) "cm"
+          [slider :height height 100 220 bmi-data]]
+         [:div {:style {:width width}}
+          "Weight: " (int weight) "kg"
+          [slider :weight weight 30 150 bmi-data]]
+         [:div {:style {:width width}}
+          "BMI: " (int bmi) " "
+          [:span {:style {:color color}} diagnose]
+          [slider :bmi bmi 10 50 bmi-data]]]))))
 
 (defn ^:export run []
   (r/render [bmi-component]
