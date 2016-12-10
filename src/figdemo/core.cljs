@@ -130,8 +130,8 @@
                                 [:strong field] 
                                 (if (nil? @selected-choice-id) 
                                   "None" 
-                                  (str (:label (item-for-id @selected-choice-id choice-seq))
-                                       " [" @selected-choice-id "]"))]]]]])))
+                                  (:label (item-for-id @selected-choice-id choice-seq))
+                                       )]]]]])))
 
 ;;we'd like to define a component that can take a seq of [field choice-seq]
 ;;and construct a control that allows one to construct selection by choosing
@@ -156,11 +156,22 @@
    ["Scenario" [{:id 1 :label "S1"}
                 {:id 2 :label "S2"}]]])
 
-;(defn compute-menu [db]
-;  (
-    
-    
-    
+;;given a tad db, compute the menu choices from it.
+;;it'd be even better if we could compute the
+;;choices interactively...
+(defn compute-menu
+  ([acc db]
+   (if-let [ks (and (map? db) (keys db))]
+     (let [lvl (conj acc ks)]
+       (compute-menu lvl (get db (first ks))))
+     acc)))
+
+(defn db->menu [db]
+  (map  (fn [id xs]
+          [id (map-indexed (fn [idx x]
+                             {:id idx :label (str x)}) (sort xs))])
+        ["SRC" "Scenario"  "Measure" "[AC RC]"]
+        (compute-menu [] db)))
 
 (defn gantt-selector []
   [:div {:id "gantt-selector"}
@@ -175,7 +186,7 @@
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
-  (let [{:keys [table-node chart-node tree-node]} @app-state]
+  (let [{:keys [table-node chart-node tree-node db]} @app-state]
     [v-box
      :size     "auto" 
      :gap      "10px"
@@ -187,7 +198,7 @@
        #_tree-node
        #_[selection-list [{:id 1 :label "A"}
                         {:id 2 :label "B"}]]
-       [menu-component fake-menu-data]]
+       [menu-component (or (db->menu db) fake-menu-data)]]
       ;;where we'll store our gannt chart input and other stuff
       [gantt-selector]
       ;;look into using an h-box alternately.
