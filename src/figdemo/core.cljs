@@ -20,11 +20,14 @@
 (println "This text is printed from src/figdemo/core.cljs. Go ahead and edit it and see reloading in action.")
 (println "heyo!!!")
 ;; define your app data so that it doesn't get over-written on reload
-(defonce app-state (atom {:text "Hello world!"
+(defonce app-state (r/atom {:text "Hello world!"
                           :table-node "Table goes here!"
                           :chart-node "Chart-goes here!"
                           :tree-node  "Tree goes here!"
-                          }))
+                            }))
+
+;;testing out to see if a separate atom will work.
+;(def menu-items (r/atom nil))
 
 ;;we can use channels to munge around the async wierdness.
 (defn draw-current-chart []
@@ -44,17 +47,19 @@
 ;;notice, these are reactions, we're wiring stuff up manually.
 ;;in other frameworks, like re-frame, we can define this a bit
 ;;more declaratively. 
-(defn load-tad [& {:keys [source] :or {source "tad-file"}}]
+(defn load-tad [& {:keys [source data] :or {source "tad-file" data app-state}}]
   (go (let [xs (async/<!    (io/file->lines!! (io/current-file :el source)))
             db (tad/txt->tad-db xs)            
             ;;this gives us a renderable widget ala util/render! 
-           ; the-path (util/db->path db :id "the-tree")
+            ;;the-path (util/db->path db :id "the-tree")
             ]
-        (swap! app-state assoc ;:path the-path
-               :db db)
-        ;;given the-path, we can
-        #_(util/render! the-path "the-tree")
-        )))
+        (do (swap! data assoc ;:path the-path
+                   :db db)
+            ;;given the-path, we can
+            #_(util/render! the-path "the-tree")
+            nil
+            )))
+      nil)
 
 ;;we'll break up loading and rendering...
 
@@ -80,7 +85,9 @@
 ;;we can actually refactor these into "selector" components.
 ;;so, when we select this, we'll get the tadmudi db loaded up.
 ;;which creates a :db piece of our app-state.
-(defn tad-selector []
+
+
+(defn tad-selector [menu-items]  
    [:div {:id "tad-selector"}
        "A form"
        [:form 
@@ -91,9 +98,11 @@
         "Load-TADMUDI:"   [:input {:type "button"
                                    :name "load-tad-button-r"
                                    :id   "load-tad-button-r"
-                                   :on-click (fn [e]
-                                               (do (load-tad :source "tad-file-r"))
-                                               (println "loading-tad-db!!"))}]]])
+                                   :on-click (fn [e]                                               
+                                               (do (load-tad :source "tad-file-r" :data menu-items)                                                   
+                                                   )
+                                               (println "loading-tad-db!!")
+                                               )}]]])
 
 ;;currently, we have a path-tree.
 ;;what we'd really like to do is create a list of selection-boxes.
@@ -133,6 +142,11 @@
                                   (:label (item-for-id @selected-choice-id choice-seq))
                                        )]]]]])))
 
+;;the problem we have with menu-component, is that we're re-computing the menu, or
+;;we mean to.  Here, the menu-component only ever takes a single menu-seq,
+;;and never updates it.  What we want is to refresh the menu based on
+;;some updated data.
+
 ;;we'd like to define a component that can take a seq of [field choice-seq]
 ;;and construct a control that allows one to construct selection by choosing
 ;;from multiple drop-down boxes to derive a key.
@@ -140,21 +154,14 @@
   (let [db (into {} (for [[id choice-seq] menu-seq]
                       (let [data (r/atom nil)]
                         [id data])))]
-    (fn []
-      [v-box
-       :gap "10px"
-       :children
+    [v-box
+     :gap "10px"
+     :children
+     (if (empty? db)
+       [[:label "no menu loaded...."]]
        (into []
-         (for [[id choice-seq] menu-seq]
-           [(selection-list choice-seq :data (get db id) :field id)]))])))
-          
-(def fake-menu-data
-  [["SRC" [{:id 1 :label "SRC1"}
-           {:id 2 :label "SRC2"}]]
-   ["Policy" [{:id 1 :label "Policy1"}
-              {:id 2 :label "Policy2"}]]
-   ["Scenario" [{:id 1 :label "S1"}
-                {:id 2 :label "S2"}]]])
+             (for [[id choice-seq] menu-seq]
+               [(selection-list choice-seq :data (get db id) :field id)])))]))
 
 ;;given a tad db, compute the menu choices from it.
 ;;it'd be even better if we could compute the
@@ -167,9 +174,10 @@
      acc)))
 
 (defn db->menu [db]
-  (map  (fn [id xs]
+  (mapv  (fn [id xs]
           [id (map-indexed (fn [idx x]
                              {:id idx :label (str x)}) (sort xs))])
+        ;these are pre-baked at the moment...
         ["SRC" "Scenario"  "Measure" "[AC RC]"]
         (compute-menu [] db)))
 
@@ -186,36 +194,40 @@
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
-  (let [{:keys [table-node chart-node tree-node db]} @app-state]
-    [v-box
-     :size     "auto" 
-     :gap      "10px"
-     :children
-     [[:h2 "This is all reactive..."]
-      [:p "We'll show some interaction here too, charts and sliders."]
-      [tad-selector]
-      [:div {:id "the-tree"}
-       #_tree-node
-       #_[selection-list [{:id 1 :label "A"}
-                        {:id 2 :label "B"}]]
-       [menu-component (or (db->menu db) fake-menu-data)]]
-      ;;where we'll store our gannt chart input and other stuff
-      [gantt-selector]
-      ;;look into using an h-box alternately.
-       [:table #_{:align  "left"}
-        [:tbody
-         [:tr   #_{:valign "top" }
-          [:td
-           [:div {:id "the-table" :style {:width "700px" :height "300px"}}
-            table-node]]         
-          [:td
-           [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
-            chart-node]]]]]
-       [:div {:id "bar-chart"}
-        [high/chart-component]]
-       [:div {:id "bmi"}
-        [bmi/bmi-component]]
-       ]]))
+  (let [path (r/atom nil)
+        menu-items (r/atom nil)]
+    (fn [] 
+    (let [{:keys [table-node chart-node tree-node db]} @app-state
+          menu   (db->menu  (:db @menu-items))]
+      [v-box
+       :size     "auto" 
+       :gap      "10px"
+       :children
+       [[:h2 "This is all reactive..."]
+        [:p "We'll show some interaction here too, charts and sliders."]
+        [tad-selector menu-items]
+        [:div {:id "Selection"}
+         #_tree-node ;
+         #_[selection-list [{:id 1 :label "A"}
+                            {:id 2 :label "B"}]]
+         [menu-component menu]]
+        ;;where we'll store our gannt chart input and other stuff
+        [gantt-selector]
+        ;;look into using an h-box alternately.
+        [:table #_{:align  "left"}
+         [:tbody
+          [:tr   #_{:valign "top" }
+           [:td
+            [:div {:id "the-table" :style {:width "700px" :height "300px"}}
+             table-node]]         
+           [:td
+            [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
+             chart-node]]]]]
+        [:div {:id "bar-chart"}
+         [high/chart-component]]
+        [:div {:id "bmi"}
+         [bmi/bmi-component]]
+        ]]))))
 
 ;;just an example of rendering react components to dom targets.
 (defn mount-it
