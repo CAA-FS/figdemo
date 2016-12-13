@@ -147,9 +147,15 @@
 ;;and never updates it.  What we want is to refresh the menu based on
 ;;some updated data.
 
+;;A path is just a traversal of selected components.
+;;If anything is nil, we don't have a path.
+;;Otherwise, we a path into the db...
+
 ;;we'd like to define a component that can take a seq of [field choice-seq]
 ;;and construct a control that allows one to construct selection by choosing
 ;;from multiple drop-down boxes to derive a key.
+
+;;We'd like to store the selected menu somewhere too...
 (defn menu-component [menu-seq]
   (let [db (into {} (for [[id choice-seq] menu-seq]
                       (let [data (r/atom nil)]
@@ -197,37 +203,37 @@
   (let [path (r/atom nil)
         menu-items (r/atom nil)]
     (fn [] 
-    (let [{:keys [table-node chart-node tree-node db]} @app-state
-          menu   (db->menu  (:db @menu-items))]
-      [v-box
-       :size     "auto" 
-       :gap      "10px"
-       :children
-       [[:h2 "This is all reactive..."]
-        [:p "We'll show some interaction here too, charts and sliders."]
-        [tad-selector menu-items]
-        [:div {:id "Selection"}
-         #_tree-node ;
-         #_[selection-list [{:id 1 :label "A"}
-                            {:id 2 :label "B"}]]
-         [menu-component menu]]
-        ;;where we'll store our gannt chart input and other stuff
-        [gantt-selector]
-        ;;look into using an h-box alternately.
-        [:table #_{:align  "left"}
-         [:tbody
-          [:tr   #_{:valign "top" }
-           [:td
-            [:div {:id "the-table" :style {:width "700px" :height "300px"}}
-             table-node]]         
-           [:td
-            [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
-             chart-node]]]]]
-        [:div {:id "bar-chart"}
-         [high/chart-component]]
-        [:div {:id "bmi"}
-         [bmi/bmi-component]]
-        ]]))))
+      (let [{:keys [table-node chart-node tree-node db]} @app-state
+            menu   (db->menu  (:db @menu-items))]
+        [v-box
+         :size     "auto" 
+         :gap      "10px"
+         :children
+         [[:h2 "This is all reactive..."]
+          [:p "We'll show some interaction here too, charts and sliders."]
+          [tad-selector menu-items]
+          [:div {:id "Selection"}
+           #_tree-node ;
+           #_[selection-list [{:id 1 :label "A"}
+                              {:id 2 :label "B"}]]
+           [menu-component menu]]
+          ;;where we'll store our gannt chart input and other stuff
+          [gantt-selector]
+          ;;look into using an h-box alternately.
+          [:table #_{:align  "left"}
+           [:tbody
+            [:tr   #_{:valign "top" }
+             [:td
+              [:div {:id "the-table" :style {:width "700px" :height "300px"}}
+               table-node]]         
+             [:td
+              [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
+               chart-node]]]]]
+          [:div {:id "bar-chart"}
+           [high/chart-component]]
+          [:div {:id "bmi"}
+           [bmi/bmi-component]]
+          ]]))))
 
 ;;just an example of rendering react components to dom targets.
 (defn mount-it
