@@ -235,3 +235,57 @@
 (defn ^:export run []
   (r/render [bmi-component2]
             (js/document.getElementById "app")))
+
+
+;;we'd like to define a custom slider that
+;;allows us to define a functional relation between
+;;variables, and reactively compute the response
+;;as we muck with sliders.
+;;We'd like to store the resulting values...
+
+;; [function-slider [[:x 0 100]
+;;                   [:y 0 100]]
+;;  [:z [0 200]]
+;;  (fn [x y] (+ x y))
+;;  (r/atom {:x 50
+;;           :y 50})
+;;  :title "f(x) = x + y"]
+ 
+
+;;creates a slider for input variables.
+(defn variable [k x [lower upper] data]
+  [:div
+   (str (name k) ": "  x)
+   [slider k x lower upper data]])
+
+;;creates a reactive output slider (possibly elided).
+(defn response [k y [lower upper] data]
+  [:div
+   (str (name k) ": "  y)
+   [frozen-slider k y lower upper data]])
+
+;;you have to provide a receptacle, or optionally
+;;a function to jam...
+(defn function-slider [var-ranges output-range f data & {:keys [title] :or {title "F(X)"}}]
+  (let [;bmi-data (r/atom {:height 180 :weight 80})        
+        width    400 ;call this once.
+        ;;so, f should map inputs (gathered from the data) to output
+        ;;as inputs change, we recompute (f inputs) and store the value
+        ;;in output.  Output is updated to reflect new value.        
+        inputs (map first var-ranges)
+        [output bounds] output-range]                  
+    (fn [] ;;everytime we update the component, we call this.
+      (let [xs     (map (fn [k] (get @data k)) inputs)         
+            result (apply f xs) ;;used to be calc-bmi
+            [output bounds] output-range
+            ]
+        (into [:div [:h3 title]]
+              (concat (for [[k bounds] var-ranges]
+                        [variable k (get @data k) bounds data])
+                      [[response output result bounds data]
+                       #_[:label result] ]))))))
+                
+         
+  
+  
+  

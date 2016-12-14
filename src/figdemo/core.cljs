@@ -110,8 +110,14 @@
 ;;expected to have {:id :label [:group?]}
 
 ;;adapted from the re-com tutorial.
+;;we can change this to directly store the selected value...
+;;so, a [:field, id] pair..., rather than just the selected id.
 (defn selection-list [choice-seq & {:keys [data field] :or {field "Selected Value:"}}]
-  (let [selected-choice-id (or data (r/atom nil))]
+  (let [selected-choice-id  (r/atom nil)
+        data  (or data (r/atom nil))
+        _     (add-watch selected-choice-id :update
+                          (fn [atm k old new]
+                            (reset! data (:label (item-for-id new choice-seq)))))]
       (fn [] 
        [v-box 
         :gap      "10px" 
@@ -137,9 +143,9 @@
                                 :on-change   #(reset! selected-choice-id %)]
                                [:div 
                                 [:strong field] 
-                                (if (nil? @selected-choice-id) 
+                                #_(if (nil? @selected-choice-id) 
                                   "None" 
-                                  (:label (item-for-id @selected-choice-id choice-seq))
+                                   @data #_(item-for-id @selected-choice-id choice-seq)
                                        )]]]]])))
 
 ;;the problem we have with menu-component, is that we're re-computing the menu, or
@@ -155,11 +161,24 @@
 ;;and construct a control that allows one to construct selection by choosing
 ;;from multiple drop-down boxes to derive a key.
 
+;;need to store the selection...
+;;If there's an item selected from each menu, then we have a path right?
+
+;;also, it'd be nice to have a dependent menu.  I,e:
+;;  select from one menu, creates the next...
+;;  After you bottom out, result is stored in a provided atom.
+;;  So you have to pass storage in.
+
 ;;We'd like to store the selected menu somewhere too...
-(defn menu-component [menu-seq]
-  (let [db (into {} (for [[id choice-seq] menu-seq]
-                      (let [data (r/atom nil)]
-                        [id data])))]
+;;result could be a channel or an atom...
+(defn menu-component [menu-seq result]
+  (let [update-id! (fn [id]
+                     (fn [a k old new]
+                       (swap! result assoc id new)))
+        db     (into {} (for [[id choice-seq] menu-seq]
+                          (let [data (r/atom nil)
+                                _   (add-watch data id (update-id! id))]
+                            [id data])))]
     [v-box
      :gap "10px"
      :children
@@ -198,13 +217,29 @@
     "DrawGantt:"    [:input {:type "button" :name "drawgantt-r" :id "drawgantt-r"
                              :on-click (fn [e] (println "drawing-gantt!"))}]]])
 
+(def structures #{"{" "["})
+(defn as-key [x]
+  (if (structures (first x))
+    (cljs.reader/read-string x)
+    (keyword x)))
+
+(defn as-val [x]
+  (if (structures (first x))
+    (cljs.reader/read-string x)
+     x))
+
 ;;using vbox instead of divs and friends.
 (defn app-body []
-  (let [path (r/atom nil)
-        menu-items (r/atom nil)]
+  (let [menu-items (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
+        selection  (r/atom nil)]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
-            menu   (db->menu  (:db @menu-items))]
+            menu     (db->menu  (:db @menu-items))
+            the-path (reduce  (fn [acc [k _]]
+                                (if-let [v (get @selection k)]
+                                  (conj acc [k (as-val v)])
+                                  (reduced nil))) []  menu)
+            xy       (second (last the-path))]
         [v-box
          :size     "auto" 
          :gap      "10px"
@@ -213,10 +248,21 @@
           [:p "We'll show some interaction here too, charts and sliders."]
           [tad-selector menu-items]
           [:div {:id "Selection"}
-           #_tree-node ;
-           #_[selection-list [{:id 1 :label "A"}
-                              {:id 2 :label "B"}]]
-           [menu-component menu]]
+           [menu-component menu selection]       
+           [:label (str the-path)]]
+          ;;given a path, we'll let the last segment be reactive....
+          [:div {:id "Coordinates"}
+           ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
+           ;;In this case, x : ac, y : rc, z : measure
+           [bmi/bmi-component]
+           ]
+          ;;we'll put our reactive bar-chart here...
+          ;;Figure out how to change the data for the bar chart dynamically.
+          ;;Optionally re-render the whole thing.
+          [:div {:id "tad-bar"}
+           [high/chart-component]
+           ]
+          
           ;;where we'll store our gannt chart input and other stuff
           [gantt-selector]
           ;;look into using an h-box alternately.
@@ -229,10 +275,18 @@
              [:td
               [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
                chart-node]]]]]
-          [:div {:id "bar-chart"}
-           [high/chart-component]]
           [:div {:id "bmi"}
            [bmi/bmi-component]]
+          [:div {:id "function"}
+           [bmi/function-slider
+            [[:x [0 100]]
+             [:y [0 100]]]
+            [:z [0 200]]
+            (fn [x y] (+ (int x) (int y)))
+            (r/atom {:x 50
+                     :y 50})
+            :title "f(x) = x + y"]
+           ]
           ]]))))
 
 ;;just an example of rendering react components to dom targets.
