@@ -37,6 +37,52 @@
              :data [973 914 4054 732 34]}]
    })
 
+;;we're dealing with categorial data in bar charts, by default.
+;;so, data of the form
+;;[s1 [y1 y2 y3 y4]
+;; s2 [y2 y2 y3 y4]]
+;;or, if we're doing categories...
+;;[s1 {c1 v c2 v c3 v}
+;; s2 {c1 v c2 v c3 v} ...]
+(defn categorical-series [xs & {:keys [categories]}]
+  (let [cats (or categories (keys (val (first xs))))
+        record->data #(into [] (map (fn [k] (get % k))) cats)]
+    (into []
+          (for [[ser r] xs]
+            {:name ser
+             :data (record->data r)}))))
+
+#_(defn ->bar-chart [& {:keys [title subtitle categories
+                             x-label y-label series
+                             ]}]  
+  {:chart    {:type "bar"}
+   :title    {:text (or title "Bar Chart")}
+   :subtitle {:text (or subtitle "Source: Thin Air")}
+   :xAxis    {:categories (mapv str categories)
+              :title {:text nil}}
+   :yAxis {:min 0
+           :title {:text (or (str y-label) "Y")
+                   :align "high"}
+           :labels {:overflow "justify"}}
+   :tooltip {:valueSuffix " millions"}
+   :plotOptions {:bar {:dataLabels {:enabled true}}}
+   :legend {:layout "vertical"
+            :align "right"
+            :verticalAlign "top"
+            :x -40
+            :y 100
+            :floating true
+            :borderWidth 1
+            :shadow true}
+   :credits {:enabled false}
+   :series [{:name "Year 1800"
+             :data [107 31 635 203 2]}
+            {:name "Year 1900"
+             :data [133 156 947 408 6]}
+            {:name "Year 2008"
+             :data [973 914 4054 732 34]}]
+   })
+
 ;;this is the background, static if you will...
 (defn chart-render []
   [:div {:style {:min-width "310px" :max-width "800px" 
@@ -63,11 +109,12 @@
           _  (reset! chrt c)]
       c)))
 
-(defn chart-component []
-  (reagent/create-class
-   {:reagent-render chart-render
-    :component-did-mount (->mounted-chart chart-config)
-    #_chart-did-mount}))
+(defn chart-component [& {:keys [spec chartref] :or {spec chart-config}}]
+  (let [c  (->mounted-chart spec)
+        _  (when chartref (reset! chartref c))]
+    (reagent/create-class
+     {:reagent-render chart-render
+      :component-did-mount c})))
 
 ;;working with charts, to dynamically update the data...
 (defn series-seq [c]
@@ -83,6 +130,11 @@
           []
           (categories c)))
 
+;;This makes it real easy to update data to a (currently) bar chart.
+;;So, if we have something like a channel (or even a fn) that
+;;interacts with the chart, we can dynamically update the data
+;;in response to user interaction (or some other event).
+;;So, the chart becomes a model of the data.
 (defn push-data!
   ([c k xs]
    (when-let [s (get (series-map c) k)]
@@ -91,5 +143,10 @@
    (when (map? series-updates)
      (doseq [[k xs] series-updates]
        (push-data! c k xs)))))
+
+;;An extension of this idea is to just provide an atom to the chart
+;;component (the trends), and the chart component watches the
+;;atom for changes (or channel), pushing data as updates come in.
+
 
 #_(push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)} "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}})
