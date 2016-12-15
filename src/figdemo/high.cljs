@@ -55,11 +55,41 @@
 ;;What we really have is a function that instantiates the
 ;;chart on a node.
 
+(def chrt (atom nil))
+
 (defn ->mounted-chart [opts]
   (fn [this]
-    (js/Highcharts.Chart. (reagent/dom-node this) (clj->js opts))))
+    (let [c  (js/Highcharts.Chart. (reagent/dom-node this) (clj->js opts))
+          _  (reset! chrt c)]
+      c)))
 
 (defn chart-component []
-    (reagent/create-class {:reagent-render chart-render
-                           :component-did-mount (->mounted-chart chart-config)
-                           #_chart-did-mount}))
+  (reagent/create-class
+   {:reagent-render chart-render
+    :component-did-mount (->mounted-chart chart-config)
+    #_chart-did-mount}))
+
+;;working with charts, to dynamically update the data...
+(defn series-seq [c]
+  (map (fn [x] [(.-name x) x]) (.-series c)))
+(defn categories [c]
+  (js->clj (.-categories (aget (.-xAxis c) 0))))
+
+(defn series-map [c] (into {} (series-seq c)))
+
+(defn map->point [c m]
+  (reduce (fn [acc k]
+            (conj acc  (or (get m k) nil)))
+          []
+          (categories c)))
+
+(defn push-data!
+  ([c k xs]
+   (when-let [s (get (series-map c) k)]
+     (.setData s (clj->js   (if (map? xs) (map->point c xs)  xs)))))
+  ([c series-updates]
+   (when (map? series-updates)
+     (doseq [[k xs] series-updates]
+       (push-data! c k xs)))))
+
+#_(push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)} "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}})

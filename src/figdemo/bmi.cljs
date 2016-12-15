@@ -279,7 +279,8 @@
             result (apply f xs) ;;used to be calc-bmi
             [output bounds] output-range
             ]
-        (into [:div [:h3 title]]
+        (into [:div {:style {:width width}}
+               [:h3 title]]
               (concat (for [[k bounds] var-ranges]
                         [variable k (get @data k) bounds data])
                       [[response output result bounds data]

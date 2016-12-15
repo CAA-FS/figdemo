@@ -21,9 +21,9 @@
 (println "heyo!!!")
 ;; define your app data so that it doesn't get over-written on reload
 (defonce app-state (r/atom {:text "Hello world!"
-                          :table-node "Table goes here!"
-                          :chart-node "Chart-goes here!"
-                          :tree-node  "Tree goes here!"
+                            :table-node "Table goes here!"
+                            :chart-node "Chart-goes here!"
+                            :tree-node  "Tree goes here!"
                             }))
 
 ;;testing out to see if a separate atom will work.
@@ -54,7 +54,8 @@
             ;;the-path (util/db->path db :id "the-tree")
             ]
         (do (swap! data assoc ;:path the-path
-                   :db db)
+                   :db db) ;;this is not showing up....
+            (swap! app-state assoc :db db)
             ;;given the-path, we can
             #_(util/render! the-path "the-tree")
             nil
@@ -63,9 +64,9 @@
 
 ;;we'll break up loading and rendering...
 
-(swap! app-state assoc
-       :draw draw-current-chart
-       :load-tad load-tad)
+;(swap! app-state assoc
+;       :draw draw-current-chart
+;       :load-tad load-tad)
 
 ;;now, can we build a damn gannt chart or what?
 ;;we'll also need to use .-name a lot....
@@ -74,8 +75,9 @@
   ;;optionally touch your app-state to force rerendering depending on
   ;;your application
   ;;(swap! app-state update-in [:__figwheel_counter] inc)
-  (swap! app-state assoc :draw     draw-current-chart
-                         :load-tad load-tad))
+  #_(swap! app-state assoc :draw     draw-current-chart
+         :load-tad load-tad)
+  )
 
 ;;setup our button click to trigger rendering the chart
 ;;the "old fashioned" way
@@ -228,10 +230,22 @@
     (cljs.reader/read-string x)
      x))
 
+
+(defn current-path []    (get @app-state :current-path))
+(defn current-samples []
+  (when-let [xs (seq (current-path))]
+    (get-in (:db @app-state) xs )))
+
+;;we need a relation between the app data, the path, and the
+;;measure.  Basically, we need to tap into
+;;the functions in tadmudi/
+
 ;;using vbox instead of divs and friends.
 (defn app-body []
   (let [menu-items (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
-        selection  (r/atom nil)]
+        selection  (r/atom nil)
+        function-data (r/atom {:x 50
+                               :y 50})]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
             menu     (db->menu  (:db @menu-items))
@@ -239,6 +253,7 @@
                                 (if-let [v (get @selection k)]
                                   (conj acc [k (as-val v)])
                                   (reduced nil))) []  menu)
+            _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))
             xy       (second (last the-path))]
         [v-box
          :size     "auto" 
@@ -249,12 +264,18 @@
           [tad-selector menu-items]
           [:div {:id "Selection"}
            [menu-component menu selection]       
-           [:label (str the-path)]]
+           [:label {:id "the-path"} (str the-path)]]
           ;;given a path, we'll let the last segment be reactive....
           [:div {:id "Coordinates"}
            ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
-           ;;In this case, x : ac, y : rc, z : measure
-           [bmi/bmi-component]
+           ;;In this case, x : ac, y : rc, z : measure   
+           [bmi/function-slider
+            [[:x [0 100]]
+             [:y [0 100]]]
+            [:z [0 200]]
+            (fn [x y] (+ (int x) (int y)))
+            function-data
+            :title "z = x + y"]          
            ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
@@ -275,18 +296,9 @@
              [:td
               [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
                chart-node]]]]]
-          [:div {:id "bmi"}
-           [bmi/bmi-component]]
-          [:div {:id "function"}
-           [bmi/function-slider
-            [[:x [0 100]]
-             [:y [0 100]]]
-            [:z [0 200]]
-            (fn [x y] (+ (int x) (int y)))
-            (r/atom {:x 50
-                     :y 50})
-            :title "f(x) = x + y"]
-           ]
+          #_[:div {:id "bmi"}
+             [bmi/bmi-component]]
+          
           ]]))))
 
 ;;just an example of rendering react components to dom targets.
