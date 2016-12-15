@@ -8,11 +8,20 @@
 ;;load up highcharts.
 ;;(. highcharts.core main)
 
-(def chart-config
+(def demo-series
+  [{:name "Year 1800"
+    :data [107 31 635 203 2]}
+   {:name "Year 1900"
+    :data [133 156 947 408 6]}
+   {:name "Year 2008"
+    :data [973 914 4054 732 34]}])
+(def demo-categories ["Africa" "America" "Asia" "Europe" "Oceania"])
+
+(def demo-config
   {:chart {:type "bar"}
    :title {:text "Historic World Population by Region"}
    :subtitle {:text "Source: Wikipedia.org"}
-   :xAxis {:categories ["Africa" "America" "Asia" "Europe" "Oceania"]
+   :xAxis {:categories demo-categories
            :title {:text nil}}
    :yAxis {:min 0
            :title {:text "Population (millions)"
@@ -29,13 +38,10 @@
             :borderWidth 1
             :shadow true}
    :credits {:enabled false}
-   :series [{:name "Year 1800"
-             :data [107 31 635 203 2]}
-            {:name "Year 1900"
-             :data [133 156 947 408 6]}
-            {:name "Year 2008"
-             :data [973 914 4054 732 34]}]
+   :series demo-series
    })
+
+
 
 ;;we're dealing with categorial data in bar charts, by default.
 ;;so, data of the form
@@ -52,19 +58,19 @@
             {:name ser
              :data (record->data r)}))))
 
-#_(defn ->bar-chart [& {:keys [title subtitle categories
+(defn ->bar-chart [& {:keys [title subtitle categories
                              x-label y-label series
                              ]}]  
   {:chart    {:type "bar"}
    :title    {:text (or title "Bar Chart")}
    :subtitle {:text (or subtitle "Source: Thin Air")}
    :xAxis    {:categories (mapv str categories)
-              :title {:text nil}}
+              :title {:text (when x-label (str x-label))}}
    :yAxis {:min 0
-           :title {:text (or (str y-label) "Y")
+           :title {:text (or (when y-label (str y-label)) "Y")
                    :align "high"}
            :labels {:overflow "justify"}}
-   :tooltip {:valueSuffix " millions"}
+   ;:tooltip {:valueSuffix " millions"}
    :plotOptions {:bar {:dataLabels {:enabled true}}}
    :legend {:layout "vertical"
             :align "right"
@@ -75,13 +81,21 @@
             :borderWidth 1
             :shadow true}
    :credits {:enabled false}
-   :series [{:name "Year 1800"
-             :data [107 31 635 203 2]}
-            {:name "Year 1900"
-             :data [133 156 947 408 6]}
-            {:name "Year 2008"
-             :data [973 914 4054 732 34]}]
-   })
+   :series series})
+
+
+(def bar-config (->bar-chart
+                 :title    "Historic World Population by Region"
+                 :subtitle "Source: Wikipedia.org"
+                 :x-label  "Country"
+                 :y-label  "Population (millions)"
+                 :series (categorical-series {"Year 1800"
+                                              {"Africa" 107 "America" 31 "Asia" 635 "Europe" 203 "Oceania" 2}
+                                              "Year 1900"
+                                              {"Africa" 133 "America" 156 "Asia" 947 "Europe" 408 "Oceania" 6}
+                                              "Year 2008"
+                                              {"Africa" 973 "America" 914 "Asia" 4054 "Europe" 732 "Oceania" 34}})))
+
 
 ;;this is the background, static if you will...
 (defn chart-render []
@@ -92,7 +106,7 @@
 ;;Typically, for the goog libs, we'll call this guy
 ;;automagically ala render..
 (defn chart-did-mount [this]
-  (js/Highcharts.Chart. (reagent/dom-node this) (clj->js chart-config)))
+  (js/Highcharts.Chart. (reagent/dom-node this) (clj->js demo-config)))
 
 ;;this is a little inverted...
 ;;what we'd like to do is take a generic widget, and
@@ -109,7 +123,7 @@
           _  (reset! chrt c)]
       c)))
 
-(defn chart-component [& {:keys [spec chartref] :or {spec chart-config}}]
+(defn chart-component [& {:keys [spec chartref] :or {spec demo-config}}]
   (let [c  (->mounted-chart spec)
         _  (when chartref (reset! chartref c))]
     (reagent/create-class

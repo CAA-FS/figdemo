@@ -285,8 +285,6 @@
                         [variable k (get @data k) bounds data])
                       [[response output result bounds data]
                        #_[:label result] ]))))))
-                
-         
-  
+                        
   
   
