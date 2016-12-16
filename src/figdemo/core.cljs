@@ -283,7 +283,7 @@
           [:div {:id "tad-bar"}
            [high/chart-component]
            ]
-          
+          ;
           ;;where we'll store our gannt chart input and other stuff
           [gantt-selector]
           ;;look into using an h-box alternately.
