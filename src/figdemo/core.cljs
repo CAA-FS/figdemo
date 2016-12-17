@@ -81,8 +81,8 @@
 
 ;;setup our button click to trigger rendering the chart
 ;;the "old fashioned" way
-(util/listen! controls/draw-button     "click" (fn [_] ((:draw @app-state))))
-(util/listen! controls/load-tad-button "click" (fn [_] ((:load-tad @app-state))))
+#_(util/listen! controls/draw-button     "click" (fn [_] ((:draw @app-state))))
+#_(util/listen! controls/load-tad-button "click" (fn [_] ((:load-tad @app-state))))
 
 ;;we can actually refactor these into "selector" components.
 ;;so, when we select this, we'll get the tadmudi db loaded up.
