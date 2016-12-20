@@ -1,6 +1,7 @@
 (ns figdemo.core
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :as async]
+            [clojure.pprint :as pprint]
             [goog.dom :as dom]
             [goog.events :as events]
             [figdemo.util :as util]
@@ -114,8 +115,8 @@
 ;;adapted from the re-com tutorial.
 ;;we can change this to directly store the selected value...
 ;;so, a [:field, id] pair..., rather than just the selected id.
-(defn selection-list [choice-seq & {:keys [data field] :or {field "Selected Value:"}}]
-  (let [selected-choice-id  (r/atom nil)
+(defn selection-list [choice-seq & {:keys [data choice field] :or {field "Selected Value:"}}]
+  (let [selected-choice-id  (or choice (r/atom nil))
         data  (or data (r/atom nil))
         _     (add-watch selected-choice-id :update
                           (fn [atm k old new]
@@ -148,7 +149,7 @@
                                 #_(if (nil? @selected-choice-id) 
                                   "None" 
                                    @data #_(item-for-id @selected-choice-id choice-seq)
-                                       )]]]]])))
+                                   )]]]]])))
 
 ;;the problem we have with menu-component, is that we're re-computing the menu, or
 ;;we mean to.  Here, the menu-component only ever takes a single menu-seq,
@@ -190,6 +191,31 @@
              (for [[id choice-seq] menu-seq]
                [(selection-list choice-seq :data (get db id) :field id)])))]))
 
+
+;;we'd like to have a lazily-computed, dependent set of selectors,
+;;that is, for each selection, i'd like to only get choices from the current
+;;path delineated by the selection, if there are any...
+
+;;so, we have, as an input, a nested map.
+;;If we have a terminal node, selection doesn't change anything.
+;;If we have a branch node, then changing the selection alters
+;;child selector behavior (typically by constraining choices).
+;;we only need to maintain the path along the map.
+;;the choices at any given level are equivalent to the keys of the map at said level in the path.
+(defn maybe-keys [x]   (when (map? x) (keys x)))
+(defn choices    [m p] (maybe-keys  (get-in m p)))
+
+;;this gives us an unraveling choice tree.  As we
+;;select choices, determined by p, our later choices are
+;;constrained.  not worried a whole-lot about performace on
+;;this one.
+(defn choice-tree [m p]
+  (when-let [ks  (maybe-keys m)]
+    (concat [(sort ks)]
+            (choice-tree (get m (first p)) (rest p)))))
+
+
+
 ;;given a tad db, compute the menu choices from it.
 ;;it'd be even better if we could compute the
 ;;choices interactively...
@@ -200,13 +226,68 @@
        (compute-menu lvl (get db (first ks))))
      acc)))
 
-(defn db->menu [db]
+(defn db->menu [db & {:keys [labels] :or {labels ["SRC" "Scenario"  "Measure" "[AC RC]"]}}]
   (mapv  (fn [id xs]
           [id (map-indexed (fn [idx x]
                              {:id idx :label (str x)}) (sort xs))])
         ;these are pre-baked at the moment...
-        ["SRC" "Scenario"  "Measure" "[AC RC]"]
+        labels
         (compute-menu [] db)))
+
+(defn choices->menu [xs & {:keys [labels] :or {labels ["SRC" "Scenario"  "Measure" "[AC RC]"]}}]
+  (mapv  (fn [id xs]
+          [id (map-indexed (fn [idx x]
+                             {:id idx :label (str x)}) (sort xs))])
+        ;these are pre-baked at the moment...
+        labels
+        xs))
+    
+;;given a map, maintains a computed path through the map, and provides a
+;;reactive, dependent set of selection-boxes that reflect the possibly choices
+;;given the constraints of the current path.
+(defn map-selector [choice-map path & {:keys [data labels field] :or {field "Selected Value:"}}]
+  (let [compute-menu (fn [p] (-> (choice-tree choice-map p)
+                                 (choices->menu :labels (if false #_(seq labels) labels
+                                                            (iterate inc 0)))))
+        current-menu (r/atom (compute-menu @path))
+        compute-path! (fn [idx] ;;at the path-index, we have a change.                        
+                        (fn [a k old new]
+                          (do (swap! path
+                                (fn [old-path]                                  
+                                  (let [new-path 
+                                        (cond (zero? idx) [new]
+                                              (= idx (count old-path)) (conj old-path new)
+                                              (= idx (dec (count old-path))) (assoc old-path idx new)
+                                              :else
+                                              (conj (into [] (take idx old-path))
+                                                          new))
+                                        _ (pprint/pprint [:old-path old-path
+                                                          :new new
+                                                          :old old
+                                                          :idx idx])
+                                        _
+                                        (reset! current-menu (compute-menu new-path))]
+                                    new-path))))))]
+    (fn []
+      (let [menu-seq    @current-menu
+            db          (into {} (for [[id choice-seq] menu-seq]
+                                   (let [data (r/atom nil)
+                                        _    (add-watch data id (compute-path! (int id)))]
+                                     [id data])))
+            _ (pprint/pprint [:menu menu-seq])
+            _ (pprint/pprint [:db db])
+            _ (pprint/pprint [:path @path])
+            ]
+      [v-box
+       :gap "10px"
+       :children
+       (if  (empty? db)
+         [[:label "no menu loaded...."]]
+         (into [[:label (str @path)]]
+               (for [[id choice-seq] menu-seq]
+                 [(selection-list choice-seq :data (get db id) :field id)])))]))))
+  
+
 
 (defn gantt-selector []
   [:div {:id "gantt-selector"}
@@ -243,9 +324,12 @@
 ;;using vbox instead of divs and friends.
 (defn app-body []
   (let [menu-items (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
+        _          (add-watch menu-items :db (fn [a k old new]
+                                               (swap! app-state assoc :db new)))
         selection  (r/atom nil)
         function-data (r/atom {:x 50
-                               :y 50})]
+                               :y 50})
+        #_map-path      #_(r/atom [])]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
             menu     (db->menu  (:db @menu-items))
@@ -275,7 +359,12 @@
             [:z [0 200]]
             (fn [x y] (+ (int x) (int y)))
             function-data
-            :title "z = x + y"]          
+            :title "z = x + y"]           
+           ]
+          ;;on ice for now.
+          #_[:div {:id "Map Selector"}
+           (when-let [m (:db @menu-items)]
+             [map-selector (:db @menu-items) map-path])
            ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
