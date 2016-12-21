@@ -241,42 +241,68 @@
         ;these are pre-baked at the moment...
         labels
         xs))
-    
+
+;; (defn build-menu [choice-map p]
+;;   (-> (choice-tree choice-map p)
+;;       (choices->menu :labels (iterate inc 0))))
+
+(defn log [msg v]
+  (do (println msg)
+      v))
+
+(defn atom? [x] (implements? IDeref x))
+
+;;we have to use this going to/from the text input to
+;;clojure....not a huge deal, but it's something we  have
+;;to remember to do, particularly if we have clojure
+;;data-structures as keys in nested maps.
+(defn coerce [x]
+  (if (string? x)
+    (if (#{"[" "{" "#"} (first x)) (cljs.reader/read-string x)
+        x)
+    x))
+
+(defn new-path [old-path idx new]
+  (let [new (coerce new)]
+    (cond (zero? idx)  (log :zeroed [new])
+          (= idx (count old-path))       (log :grow (conj old-path new))
+          (= idx (dec (count old-path))) (log :tail (conj old-path  new))
+          :else
+          (log :shrink
+               (conj (into [] (take idx old-path))
+                     new)))))
+  
+(def last-choices (r/atom nil))
 ;;given a map, maintains a computed path through the map, and provides a
 ;;reactive, dependent set of selection-boxes that reflect the possibly choices
 ;;given the constraints of the current path.
-(defn map-selector [choice-map path & {:keys [data labels field] :or {field "Selected Value:"}}]
-  (let [compute-menu (fn [p] (-> (choice-tree choice-map p)
-                                 (choices->menu :labels (if false #_(seq labels) labels
-                                                            (iterate inc 0)))))
-        current-menu (r/atom (compute-menu @path))
+(defn ->map-selector [path & {:keys [data labels field] :or {field "Selected Value:"}}]
+  (let [compute-menu (fn [choices p] (-> (let [t (choice-tree choices p)]
+                                           (log [:tree t] t))
+                                         (choices->menu :labels (if  (seq labels) labels
+                                                                     (iterate inc 0)))))
         compute-path! (fn [idx] ;;at the path-index, we have a change.                        
                         (fn [a k old new]
                           (do (swap! path
                                 (fn [old-path]                                  
-                                  (let [new-path 
-                                        (cond (zero? idx) [new]
-                                              (= idx (count old-path)) (conj old-path new)
-                                              (= idx (dec (count old-path))) (assoc old-path idx new)
-                                              :else
-                                              (conj (into [] (take idx old-path))
-                                                          new))
-                                        _ (pprint/pprint [:old-path old-path
+                                  (let [res (new-path old-path idx new)                                        
+                                        #_a #_(pprint/pprint [:old-path old-path
                                                           :new new
                                                           :old old
                                                           :idx idx])
-                                        _
-                                        (reset! current-menu (compute-menu new-path))]
-                                    new-path))))))]
-    (fn []
-      (let [menu-seq    @current-menu
+                                        ]
+                                   res))))))]
+    (fn [choices]
+      (let [_ (reset! last-choices {:choices choices :path @path})
+            menu-seq    (compute-menu choices @path)
+            _ (println [:menu-count (count menu-seq) :choice-count (count choices) (first choices)])
             db          (into {} (for [[id choice-seq] menu-seq]
                                    (let [data (r/atom nil)
                                         _    (add-watch data id (compute-path! (int id)))]
                                      [id data])))
-            _ (pprint/pprint [:menu menu-seq])
-            _ (pprint/pprint [:db db])
-            _ (pprint/pprint [:path @path])
+            _           (pprint/pprint [:menu menu-seq])
+            _           (pprint/pprint [:db db])
+            _           (pprint/pprint [:path @path])
             ]
       [v-box
        :gap "10px"
@@ -323,16 +349,15 @@
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
-  (let [menu-items (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
-        _          (add-watch menu-items :db (fn [a k old new]
-                                               (swap! app-state assoc :db new)))
-        selection  (r/atom nil)
+  (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
+        selection     (r/atom nil)
         function-data (r/atom {:x 50
                                :y 50})
-        #_map-path      #_(r/atom [])]
+        map-path      (r/atom [])]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
-            menu     (db->menu  (:db @menu-items))
+            mitems   (:db @menu-items) ;;this changes...
+            menu     (db->menu  mitems)
             the-path (reduce  (fn [acc [k _]]
                                 (if-let [v (get @selection k)]
                                   (conj acc [k (as-val v)])
@@ -346,11 +371,11 @@
          [[:h2 "This is all reactive..."]
           [:p "We'll show some interaction here too, charts and sliders."]
           [tad-selector menu-items]
-          [:div {:id "Selection"}
+          #_[:div {:id "Selection"}
            [menu-component menu selection]       
            [:label {:id "the-path"} (str the-path)]]
           ;;given a path, we'll let the last segment be reactive....
-          [:div {:id "Coordinates"}
+          #_[:div {:id "Coordinates"}
            ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
            ;;In this case, x : ac, y : rc, z : measure   
            [bmi/function-slider
@@ -362,14 +387,16 @@
             :title "z = x + y"]           
            ]
           ;;on ice for now.
-          #_[:div {:id "Map Selector"}
-           (when-let [m (:db @menu-items)]
-             [map-selector (:db @menu-items) map-path])
+          [:div {:id "Map Selector"}
+           ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
+           ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
+           ;;just pass in the atom though....
+           [(->map-selector map-path) mitems]
            ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
-          [:div {:id "tad-bar"}
+          #_[:div {:id "tad-bar"}
            [high/chart-component]
            ]
           ;
