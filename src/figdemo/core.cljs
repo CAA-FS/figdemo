@@ -262,11 +262,11 @@
         x)
     x))
 
-(defn new-path [old-path idx new]
+(defn compute-path [old-path idx new]
   (let [new (coerce new)]
     (cond (zero? idx)  (log :zeroed [new])
           (= idx (count old-path))       (log :grow (conj old-path new))
-          (= idx (dec (count old-path))) (log :tail (conj old-path  new))
+          (= idx (dec (count old-path))) (log :tail (assoc old-path idx  new))
           :else
           (log :shrink
                (conj (into [] (take idx old-path))
@@ -277,32 +277,28 @@
 ;;reactive, dependent set of selection-boxes that reflect the possibly choices
 ;;given the constraints of the current path.
 (defn ->map-selector [path & {:keys [data labels field] :or {field "Selected Value:"}}]
-  (let [compute-menu (fn [choices p] (-> (let [t (choice-tree choices p)]
-                                           (log [:tree t] t))
-                                         (choices->menu :labels (if  (seq labels) labels
-                                                                     (iterate inc 0)))))
+  (let [lbls         (if (seq labels) labels (take 5 (iterate inc 0)))
+        idx->lbl  (into {} (map-indexed (fn [idx l] [idx (str l)]) lbls))
+        lbl->idx  (reduce-kv (fn [acc k v] (assoc acc v k)) {} idx->lbl)
+        compute-menu (fn [choices p] (-> (choice-tree choices p)
+                                         (choices->menu :labels lbls)))
         compute-path! (fn [idx] ;;at the path-index, we have a change.                        
                         (fn [a k old new]
                           (do (swap! path
                                 (fn [old-path]                                  
-                                  (let [res (new-path old-path idx new)                                        
-                                        #_a #_(pprint/pprint [:old-path old-path
-                                                          :new new
-                                                          :old old
-                                                          :idx idx])
-                                        ]
-                                   res))))))]
+                                  (compute-path old-path idx new))))))]
     (fn [choices]
-      (let [_ (reset! last-choices {:choices choices :path @path})
-            menu-seq    (compute-menu choices @path)
-            _ (println [:menu-count (count menu-seq) :choice-count (count choices) (first choices)])
-            db          (into {} (for [[id choice-seq] menu-seq]
-                                   (let [data (r/atom nil)
-                                        _    (add-watch data id (compute-path! (int id)))]
-                                     [id data])))
-            _           (pprint/pprint [:menu menu-seq])
-            _           (pprint/pprint [:db db])
-            _           (pprint/pprint [:path @path])
+      (let [menu-seq    (compute-menu choices @path)
+            n           (dec (count @path))
+            ;;db is recomputed after every selection....if we retain the selection, we
+            ;;should have our values...
+            db  (into {} (for [[lbl choice-seq] menu-seq]
+                           (let [data (r/atom  (let [id (lbl->idx lbl)
+                                                     _ (println [id n])]
+                                                 (when (<= id n)
+                                                    (nth @path id))))
+                                 _    (add-watch data lbl (compute-path! (int (lbl->idx lbl))))]
+                             [lbl data])))
             ]
       [v-box
        :gap "10px"
@@ -310,8 +306,8 @@
        (if  (empty? db)
          [[:label "no menu loaded...."]]
          (into [[:label (str @path)]]
-               (for [[id choice-seq] menu-seq]
-                 [(selection-list choice-seq :data (get db id) :field id)])))]))))
+               (for [[lbl choice-seq] menu-seq]
+                 [(selection-list choice-seq :data (get db lbl) :field lbl)])))]))))
   
 
 
@@ -372,32 +368,37 @@
           [:p "We'll show some interaction here too, charts and sliders."]
           [tad-selector menu-items]
           #_[:div {:id "Selection"}
-           [menu-component menu selection]       
-           [:label {:id "the-path"} (str the-path)]]
+             [menu-component menu selection]       
+             [:label {:id "the-path"} (str the-path)]]
           ;;given a path, we'll let the last segment be reactive....
           #_[:div {:id "Coordinates"}
-           ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
-           ;;In this case, x : ac, y : rc, z : measure   
-           [bmi/function-slider
-            [[:x [0 100]]
-             [:y [0 100]]]
-            [:z [0 200]]
-            (fn [x y] (+ (int x) (int y)))
-            function-data
-            :title "z = x + y"]           
-           ]
+             ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
+             ;;In this case, x : ac, y : rc, z : measure   
+             [bmi/function-slider
+              [[:x [0 100]]
+               [:y [0 100]]]
+              [:z [0 200]]
+              (fn [x y] (+ (int x) (int y)))
+              function-data
+              :title "z = x + y"]           
+             ]
           ;;on ice for now.
           [:div {:id "Map Selector"}
            ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
            ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
            ;;just pass in the atom though....
-           [(->map-selector map-path) mitems]
+           [(->map-selector map-path :labels ["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
            ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
           #_[:div {:id "tad-bar"}
-           [high/chart-component]
+             [high/chart-component]
+             ]
+          [:div {:id "selection"}
+           [selection-list  [{:id "a" :label "a"}
+                             {:id "b" :label "b"}
+                             {:id "c" :label "c"}] :field "a|b|c|"]
            ]
           ;
           ;;where we'll store our gannt chart input and other stuff
@@ -412,7 +413,7 @@
              [:td
               [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
                chart-node]]]]]
-          #_[:div {:id "bmi"}
+          [:div {:id "bmi"}
              [bmi/bmi-component]]
           
           ]]))))
