@@ -363,6 +363,60 @@
   (when-let [xs (seq (current-path))]
     (get-in (:db @app-state) xs )))
 
+(defn coords->bounds [xys]
+  (let [[x0 y0] (first xys)
+        left   (atom x0)
+        right  (atom x0)
+        top    (atom y0)
+        bottom (atom y0)
+        do-n (fn [n l r]
+               (do (when (< n @l)
+                     (reset! l n))
+                   (when (> n @r)
+                     (reset! r n))))]
+    (do  (reduce (fn [acc [x y]]
+                   (do (do-n x left right)
+                       (do-n y bottom top))) nil xys)
+         {:xmin @left :xmax @right
+          :ymin  @bottom :ymax @top})))
+
+;;note: since we have a limited number of keys, we can probably
+;;cache this...
+(defn sample-range []
+  (when-let [p (seq (current-path))]
+    (when-let [k (and (>= (count p) 3)
+                      (take 3 p))]
+      (->> (get-in (:db @app-state) k)
+           (map first)
+           (coords->bounds)))))
+    
+;;this allows us to wrap the tadmudi api,
+;;so we can traverse the current db a couple of
+;;different ways.
+(defn nearest-samples
+  ([p xy]
+   (let [newp (conj (into [] (butlast p)) xy)]
+     (nearest-samples newp)))
+  ([p] (tad/nearest-samples (:db @app-state) p))
+  ([]
+   (when-let [xs (seq (current-path))]
+     (nearest-samples xs))))
+
+(defn nearest-trends [xy]
+  (when-let [xs (seq (nearest-samples (current-path) xy))]
+    (into {} xs)))
+
+(defn random-samples [n]
+  (when-let [bounds (sample-range)]
+    (let [{:keys [xmin xmax ymin ymax]} bounds
+          w (- xmax xmin)
+          h (- ymax ymin)
+          rand-point (fn []
+                       [(+ xmin (rand-int w))
+                        (+ ymin (rand-int h))])]
+      (repeatedly n #(nearest-trends (rand-point))))))
+                  
+      
 ;;we need a relation between the app data, the path, and the
 ;;measure.  Basically, we need to tap into
 ;;the functions in tadmudi/
@@ -376,7 +430,7 @@
         function-data (r/atom {:x 50
                                :y 50})
         map-path      (r/atom [])
-        ;_   (bind-> map-path app-state (fn [s newval] (assoc s :p)))
+        _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
         ]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
