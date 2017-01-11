@@ -96,9 +96,22 @@
    (let [v1      (v- p2 p1)
          v2      (v- p3 p1)
          [a b c] (cross-3d v1 v2)
-         d       (dot p1 [a b c])]
+         d       (dot p1 [a b c])
+         _       (when (and (zero? a) (zero? c))
+                   (throw (js/Error. (str [:bad-plane
+                                           [p1 p2 p3]
+                                           [v1 v2]]))))                                          
+         ]
      [[a b c] d]))
   ([[p1 p2 p3]] (->plane-vec p1 p2 p3)))
+
+;;this is a bad plane apparently.
+(comment
+  (def ps [[13,12, 0.82974507] [16 ,12, 0.530213494] [10, 12, 0.298692411]])
+  (def v1  [3 0 -0.299531576])
+  (def v2 [-3 0 -0.531052659])
+  )
+
 
 ;;If we're smart, we can solve for
 ;;the value of z in our planar
