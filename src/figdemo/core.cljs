@@ -20,6 +20,31 @@
 
 (println "This text is printed from src/figdemo/core.cljs. Go ahead and edit it and see reloading in action.")
 (println "heyo!!!")
+
+
+
+;;UTILS
+(def structures #{"{" "["})
+(defn as-key [x]
+  (if (structures (first x))
+    (cljs.reader/read-string x)
+    (keyword x)))
+
+(defn as-val [x]
+  (if (structures (first x))
+    (cljs.reader/read-string x)
+     x))
+
+(defn bind->
+  ([l r]
+   (add-watch l :binding
+              (fn [atm k old new]
+                (reset! r new))))
+  ([l r f]
+   (add-watch l :binding-by
+              (fn [atm k old new]
+                (swap! r f new)))))
+
 ;; define your app data so that it doesn't get over-written on reload
 (defonce app-state (r/atom {:text "Hello world!"
                             :table-node "Table goes here!"
@@ -273,43 +298,53 @@
                      new)))))
   
 (def last-choices (r/atom nil))
+;;the problem atm is that the "model" is the choice var, not the data
+;;var.  We need to 
+
+;;so we have a seq of selected-choice-ids (atoms) that get altered.
+;;we need to update the id when we rebuild the path.
+
+
 ;;given a map, maintains a computed path through the map, and provides a
 ;;reactive, dependent set of selection-boxes that reflect the possibly choices
 ;;given the constraints of the current path.
 (defn ->map-selector [path & {:keys [data labels field] :or {field "Selected Value:"}}]
-  (let [lbls         (if (seq labels) labels (take 5 (iterate inc 0)))
-        idx->lbl  (into {} (map-indexed (fn [idx l] [idx (str l)]) lbls))
-        lbl->idx  (reduce-kv (fn [acc k v] (assoc acc v k)) {} idx->lbl)
-        compute-menu (fn [choices p] (-> (choice-tree choices p)
-                                         (choices->menu :labels lbls)))
+  (let [lbls          (if (seq labels) labels (take 5 (iterate inc 0)))
+        idx->lbl      (into {} (map-indexed (fn [idx l] [idx (str l)]) lbls))
+        lbl->idx      (reduce-kv (fn [acc k v] (assoc acc v k)) {} idx->lbl)
+        compute-menu  (fn [choices p] (-> (choice-tree choices p)
+                                          (choices->menu :labels lbls)))
         compute-path! (fn [idx] ;;at the path-index, we have a change.                        
                         (fn [a k old new]
                           (do (swap! path
                                 (fn [old-path]                                  
-                                  (compute-path old-path idx new))))))]
+                                  (compute-path old-path idx new))))))
+        find-choice-id (fn [choices k]
+                         (let [k (str k)]
+                           (or (some #(when (= (:label %) k) (:id %)) choices)
+                               (throw (js/Error. (str [:invalid-choice! k :for choices]))))))]
     (fn [choices]
       (let [menu-seq    (compute-menu choices @path)
             n           (dec (count @path))
             ;;db is recomputed after every selection....if we retain the selection, we
             ;;should have our values...
             db  (into {} (for [[lbl choice-seq] menu-seq]
-                           (let [data (r/atom  (let [id (lbl->idx lbl)
-                                                     _ (println [id n])]
-                                                 (when (<= id n)
-                                                    (nth @path id))))
-                                 _    (add-watch data lbl (compute-path! (int (lbl->idx lbl))))]
-                             [lbl data])))
+                           (let [data   (r/atom  (let [id (lbl->idx lbl)
+                                                       _  (println [id n])]
+                                                   (when (<= id n)
+                                                     (nth @path id))))
+                                 choice (r/atom (when @data (find-choice-id choice-seq @data)))
+                                 _      (add-watch data lbl (compute-path! (int (lbl->idx lbl))))]
+                             [lbl {:data data :choice choice}])))
             ]
       [v-box
        :gap "10px"
        :children
-       (if  (empty? db)
-         [[:label "no menu loaded...."]]
-         (into [[:label (str @path)]]
+       (if  (empty? db)     [[:label "no menu loaded...."]] ;;empty menu
+         (into [[:label (str {:path @path})]] ;;menu with current path.
                (for [[lbl choice-seq] menu-seq]
-                 [(selection-list choice-seq :data (get db lbl) :field lbl)])))]))))
-  
-
+                 (let [{:keys [data choice]} (get db lbl)]
+                   [(selection-list choice-seq :data data :choice choice :field lbl)]))))]))))
 
 (defn gantt-selector []
   [:div {:id "gantt-selector"}
@@ -322,17 +357,6 @@
     "DrawGantt:"    [:input {:type "button" :name "drawgantt-r" :id "drawgantt-r"
                              :on-click (fn [e] (println "drawing-gantt!"))}]]])
 
-(def structures #{"{" "["})
-(defn as-key [x]
-  (if (structures (first x))
-    (cljs.reader/read-string x)
-    (keyword x)))
-
-(defn as-val [x]
-  (if (structures (first x))
-    (cljs.reader/read-string x)
-     x))
-
 
 (defn current-path []    (get @app-state :current-path))
 (defn current-samples []
@@ -343,13 +367,17 @@
 ;;measure.  Basically, we need to tap into
 ;;the functions in tadmudi/
 
+   
+
 ;;using vbox instead of divs and friends.
 (defn app-body []
   (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
-        selection     (r/atom nil)
+        selection     (r/atom nil)        
         function-data (r/atom {:x 50
                                :y 50})
-        map-path      (r/atom [])]
+        map-path      (r/atom [])
+        ;_   (bind-> map-path app-state (fn [s newval] (assoc s :p)))
+        ]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
             mitems   (:db @menu-items) ;;this changes...
@@ -367,11 +395,15 @@
          [[:h2 "This is all reactive..."]
           [:p "We'll show some interaction here too, charts and sliders."]
           [tad-selector menu-items]
-          #_[:div {:id "Selection"}
-             [menu-component menu selection]       
-             [:label {:id "the-path"} (str the-path)]]
+          ;;on ice for now.
+          [:div {:id "Map Selector"}
+           ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
+           ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
+           ;;just pass in the atom though....
+           [(->map-selector map-path :labels ["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
+           ]
           ;;given a path, we'll let the last segment be reactive....
-          #_[:div {:id "Coordinates"}
+          [:div {:id "Coordinates"}
              ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
              ;;In this case, x : ac, y : rc, z : measure   
              [bmi/function-slider
@@ -382,13 +414,6 @@
               function-data
               :title "z = x + y"]           
              ]
-          ;;on ice for now.
-          [:div {:id "Map Selector"}
-           ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
-           ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
-           ;;just pass in the atom though....
-           [(->map-selector map-path :labels ["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
-           ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
