@@ -289,13 +289,12 @@
 
 (defn compute-path [old-path idx new]
   (let [new (coerce new)]
-    (cond (zero? idx)  (log :zeroed [new])
-          (= idx (count old-path))       (log :grow (conj old-path new))
-          (= idx (dec (count old-path))) (log :tail (assoc old-path idx  new))
+    (cond (zero? idx)  [new]
+          (= idx (count old-path))       (conj old-path new)
+          (= idx (dec (count old-path))) (assoc old-path idx  new)
           :else
-          (log :shrink
-               (conj (into [] (take idx old-path))
-                     new)))))
+          (conj (into [] (take idx old-path))
+                new))))
   
 (def last-choices (r/atom nil))
 ;;the problem atm is that the "model" is the choice var, not the data
@@ -380,6 +379,11 @@
          {:xmin @left :xmax @right
           :ymin  @bottom :ymax @top})))
 
+(defn current-supply []
+  (when-let [p (seq (current-path))]
+    (when-let [xy (and (= (count p) 4)
+                       (last p))]
+      xy)))
 ;;note: since we have a limited number of keys, we can probably
 ;;cache this...
 (defn sample-range []
@@ -416,19 +420,37 @@
                         (+ ymin (rand-int h))])]
       (repeatedly n #(nearest-trends (rand-point))))))
                   
-      
+;;allows us to select numeric ranges for the key.
+(defn ->range-selector [& {:keys [function-data]}]
+  (let [function-data (or function-data (r/atom {:AC 0 :RC 0}))]
+    (fn [& [ac-rc]]      
+      (when-let [sr (sample-range)]
+        (let [{:keys [xmin xmax ymin ymax]} sr
+              _ (when ac-rc (swap! function-data
+                                   #(merge % {:AC (first ac-rc)
+                                              :RC (second ac-rc)})))]
+          [bmi/function-slider
+           [[:AC [xmin xmax]]
+            [:RC [ymin ymax]]]
+           [:z [0 200]]
+           (fn [x y] (+ (int x) (int y)))
+           function-data
+           :title "z = AC + RC"])))))
+
 ;;we need a relation between the app data, the path, and the
 ;;measure.  Basically, we need to tap into
 ;;the functions in tadmudi/
-
+(defn current-responses []
+  (when-let [samp (current-samples)]
+    (when (vector? samp) samp)))
    
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
   (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
         selection     (r/atom nil)        
-        function-data (r/atom {:x 50
-                               :y 50})
+        function-data (r/atom {:AC 0
+                               :RC 0})
         map-path      (r/atom [])
         _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
         ]
@@ -458,27 +480,26 @@
            ]
           ;;given a path, we'll let the last segment be reactive....
           [:div {:id "Coordinates"}
-             ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
-             ;;In this case, x : ac, y : rc, z : measure   
-             [bmi/function-slider
-              [[:x [0 100]]
-               [:y [0 100]]]
-              [:z [0 200]]
-              (fn [x y] (+ (int x) (int y)))
-              function-data
-              :title "z = x + y"]           
-             ]
+           ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
+           ;;In this case, x : ac, y : rc, z : measure
+           [(->range-selector :function-data function-data) (current-supply)]]
+          [:div {:id "sample"}
+           (when-let [samp (current-responses)]
+             (reduce (fn [acc m]
+                       (conj acc 
+                             [:div {}
+                              [:label (str (m :Period) ": " (m :Response))]
+                               ])) [:div {:id "blah"}]  samp))]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
           #_[:div {:id "tad-bar"}
              [high/chart-component]
              ]
-          [:div {:id "selection"}
-           [selection-list  [{:id "a" :label "a"}
-                             {:id "b" :label "b"}
-                             {:id "c" :label "c"}] :field "a|b|c|"]
-           ]
+          #_[:div {:id "selection"}
+             [selection-list  [{:id "a" :label "a"}
+                               {:id "b" :label "b"}
+                               {:id "c" :label "c"}] :field "a|b|c|"]]
           ;
           ;;where we'll store our gannt chart input and other stuff
           [gantt-selector]
@@ -492,7 +513,7 @@
              [:td
               [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
                chart-node]]]]]
-          [:div {:id "bmi"}
+          #_[:div {:id "bmi"}
              [bmi/bmi-component]]
           
           ]]))))
