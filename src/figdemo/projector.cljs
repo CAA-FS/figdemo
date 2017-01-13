@@ -51,12 +51,40 @@
                 (square (- y2 y1)))))
 
 ;;find the 3 nearest points to define
-;;an interpolating plane
+;;an interpolating plane.
+;;[Big note] there's just ooooone hiccup.
+;;If we want to use this as an interpolation
+;;scheme, we need to make sure the points we pick
+;;are not co-located on a plane parallel to one of
+;;our axes....that is, they can't all share the
+;;same x or y coordinate, else we end up
+;;with a plane normal that drops out our
+;;component of interest - z - and leaves us
+;;with a 0 approximation.
+;;So, when we select points, we want to ensure
+;;that only 2/3 share the same x or y coordinate.
+;;Note: our data will ensure that we don't
+;;have identical x/y pairs by default...
+(defn planar-constraint [[x1 y1] [x2 y2]]
+  (cond  (== x1 x2) (fn [[x y]]
+                      (not= x x1))
+         (== y1 y2) (fn [[x y]]
+                      (not= y y1))
+         :else nil))
+  
 (defn nearest [x pts]
-  (->> pts 
-       (sort-by (fn [y]
-                  (distance-2d x y)))
-       (take 3)))
+  (let [ordered (->> pts 
+                     (sort-by (fn [y] (distance-2d x y))))
+        [p1 p2] (take 2 ordered)]
+    (if-let [valid? (planar-constraint p1 p2)]
+      (if-let [p3 (some (fn [x] (when (valid? x) x))
+                        (drop 2 ordered))]
+        [p1 p2 p3]
+        (throw (js/Error.
+                (str [:no-valid-planar-point
+                      [p1 p2]
+                      (vec (drop 2 ordered))]))))
+      (vec (take 3 ordered)))))
 
 ;;define the plane from three points
 ;;If we want to construct a plane,
@@ -130,6 +158,7 @@
              c)]
     [x y z]))
 
+;;derived from bruce's dot-product-based stuff.
 (defn onto-plane2 [[x y] [[a b c] d]]
   (let [n [a b c]        
         p [x y 0] 
@@ -144,7 +173,10 @@
                     :v-scaled v-scaled
                     :q q])]
     q))
-    
+
+;;when we're selecting points in 3d, we need to either invalidate
+;;points 
+
 ;;given a 2d point, and some xyz-coords
 ;;in data, return a  point where the
 ;;z-coordinate is computed either by

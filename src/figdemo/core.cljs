@@ -384,15 +384,18 @@
     (when-let [xy (and (= (count p) 4)
                        (last p))]
       xy)))
-;;note: since we have a limited number of keys, we can probably
-;;cache this...
-(defn sample-range []
+
+(defn current-candidates []
   (when-let [p (seq (current-path))]
     (when-let [k (and (>= (count p) 3)
                       (take 3 p))]
       (->> (get-in (:db @app-state) k)
-           (map first)
-           (coords->bounds)))))
+           (map first)))))
+;;note: since we have a limited number of keys, we can probably
+;;cache this...
+(defn sample-range []
+  (when-let [xs (current-candidates)]
+    (coords->bounds xs)))
     
 ;;this allows us to wrap the tadmudi api,
 ;;so we can traverse the current db a couple of
@@ -449,8 +452,7 @@
 (defn app-body []
   (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
         selection     (r/atom nil)        
-        function-data (r/atom {:AC 0
-                               :RC 0})
+        function-data (r/atom {:AC 0 :RC 0})
         map-path      (r/atom [])
         _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
         ]
