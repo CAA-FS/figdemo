@@ -8,6 +8,56 @@
 ;;load up highcharts.
 ;;(. highcharts.core main)
 
+
+
+;;Can we recompute our plot?
+;;If the categories change, yes.
+
+;;In this case, our categories are selected SRCs.
+;;For right now, we only have one active SRC we're
+;;looking at.  We want to move on with this.
+(def tad-series
+  [{:name "PreSurge"
+    :data [107 31 635 203 2]}
+   {:name "Surge"
+    :data [133 156 947 408 6]}
+   {:name "PostSurge"
+    :data [973 914 4054 732 34]}])
+
+;;note, our charts are predicated on specific performance metrics...
+;;note: categories needs to be a seq of strings we expect to
+;;label the x axis
+;;series needs to be a seq of {:name :data}, alternately,
+;;we should be able to treat  {series [data1 ... datan]}
+;;as a map.
+
+(defn tad-config [metric categories series]
+  (let [vd (case metric
+             "Fill"    "% Fill"
+             "Surplus" "UICs")]
+    {:chart {:type "bar"}
+     :title {:text "Performance by Surge Period"}
+     :subtitle {:text "Source: Interpolated Experimental Runs"}
+     :xAxis {:categories categories
+             :title {:text nil}}
+     :yAxis {:min 0
+             :title {:text (str metric "(" vd ")")
+                     :align "high"}
+             :labels {:overflow "justify"}}
+     :tooltip {:valueSuffix vd}
+     :plotOptions {:bar {:dataLabels {:enabled true}}}
+     :legend {:layout "vertical"
+              :align "right"
+              :verticalAlign "top"
+              :x -40
+              :y 100
+              :floating true
+              :borderWidth 1
+              :shadow true}
+     :credits {:enabled false}
+     :series series
+     }))
+
 (def demo-series
   [{:name "Year 1800"
     :data [107 31 635 203 2]}
@@ -15,6 +65,7 @@
     :data [133 156 947 408 6]}
    {:name "Year 2008"
     :data [973 914 4054 732 34]}])
+
 (def demo-categories ["Africa" "America" "Asia" "Europe" "Oceania"])
 
 (def demo-config

@@ -97,10 +97,10 @@
          v2      (v- p3 p1)
          [a b c] (cross-3d v1 v2)
          d       (dot p1 [a b c])
-         _       (when (and (zero? a) (zero? c))
-                   (throw (js/Error. (str [:bad-plane
-                                           [p1 p2 p3]
-                                           [v1 v2]]))))                                          
+         ;; _       (when (and (zero? a) (zero? c))
+         ;;           (throw (js/Error. (str [:bad-plane
+         ;;                                   [p1 p2 p3]
+         ;;                                   [v1 v2]]))))                                          
          ]
      [[a b c] d]))
   ([[p1 p2 p3]] (->plane-vec p1 p2 p3)))
@@ -130,6 +130,21 @@
              c)]
     [x y z]))
 
+(defn onto-plane2 [[x y] [[a b c] d]]
+  (let [n [a b c]        
+        p [x y 0] 
+        lambda (/ (- (+ d (dot n p)))
+                  (dot n n))
+        v-scaled (v* [lambda lambda lambda]
+                     n)
+        q (v+ p v-scaled)
+        _ (println [:n n
+                    :p p
+                    :lambda lambda
+                    :v-scaled v-scaled
+                    :q q])]
+    q))
+    
 ;;given a 2d point, and some xyz-coords
 ;;in data, return a  point where the
 ;;z-coordinate is computed either by

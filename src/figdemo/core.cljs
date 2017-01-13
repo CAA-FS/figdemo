@@ -493,7 +493,7 @@
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
-          #_[:div {:id "tad-bar"}
+          [:div {:id "tad-bar"}
              [high/chart-component]
              ]
           #_[:div {:id "selection"}
@@ -502,9 +502,9 @@
                                {:id "c" :label "c"}] :field "a|b|c|"]]
           ;
           ;;where we'll store our gannt chart input and other stuff
-          [gantt-selector]
+          #_[gantt-selector]
           ;;look into using an h-box alternately.
-          [:table #_{:align  "left"}
+          #_[:table #_{:align  "left"}
            [:tbody
             [:tr   #_{:valign "top" }
              [:td
