@@ -259,10 +259,14 @@
    [slider k x lower upper data]])
 
 ;;creates a reactive output slider (possibly elided).
-(defn response [k y [lower upper] data]
-  [:div
-   (str (name k) ": "  y)
-   [frozen-slider k y lower upper data]])
+(defn response
+  [k y bounds data]
+  (if (empty? bounds)
+    [:div
+     (str (name k) ": "  y)]
+    [:div
+     (str (name k) ": "  y)
+     [frozen-slider k y (first bounds) (second bounds) data]]))
 
 ;;you have to provide a receptacle, or optionally
 ;;a function to jam...
@@ -277,7 +281,6 @@
     (fn [] ;;everytime we update the component, we call this.
       (let [xs     (map (fn [k] (get @data k)) inputs)         
             result (apply f xs) ;;used to be calc-bmi
-            [output bounds] output-range
             ]
         (into [:div {:style {:width width}}
                [:h3 title]]

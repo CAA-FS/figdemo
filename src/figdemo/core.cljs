@@ -358,6 +358,12 @@
 
 
 (defn current-path []    (get @app-state :current-path))
+
+;;brittle..
+(defn current-measure []
+  (if-let [p (current-path)]
+    (nth (seq p) 2)))
+
 (defn current-samples []
   (when-let [xs (seq (current-path))]
     (get-in (:db @app-state) xs )))
@@ -395,7 +401,8 @@
 ;;cache this...
 (defn sample-range []
   (when-let [xs (current-candidates)]
-    (coords->bounds xs)))
+    (assoc (coords->bounds xs)
+           :measure (current-measure))))
     
 ;;this allows us to wrap the tadmudi api,
 ;;so we can traverse the current db a couple of
@@ -428,14 +435,14 @@
   (let [function-data (or function-data (r/atom {:AC 0 :RC 0}))]
     (fn [& [ac-rc]]      
       (when-let [sr (sample-range)]
-        (let [{:keys [xmin xmax ymin ymax]} sr
+        (let [{:keys [xmin xmax ymin ymax measure]} sr
               _ (when ac-rc (swap! function-data
                                    #(merge % {:AC (first ac-rc)
                                               :RC (second ac-rc)})))]
           [bmi/function-slider
            [[:AC [xmin xmax]]
             [:RC [ymin ymax]]]
-           [:z [0 200]]
+           [measure []]
            (fn [x y] (+ (int x) (int y)))
            function-data
            :title "z = AC + RC"])))))

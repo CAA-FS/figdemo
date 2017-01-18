@@ -148,6 +148,21 @@
                                               {"Africa" 973 "America" 914 "Asia" 4054 "Europe" 732 "Oceania" 34}})))
 
 
+;;can we just jam fill and surplus on there? 
+(def blank-tad-config []
+  (->bar-chart
+   :title    "Performance by AC / RC Supply Mix"
+   :subtitle "SRC"
+   :x-label  "Country"
+   :y-label  "Population (millions)"
+   :series (categorical-series {"Year 1800"
+                                {"Africa" 107 "America" 31 "Asia" 635 "Europe" 203 "Oceania" 2}
+                                "Year 1900"
+                                {"Africa" 133 "America" 156 "Asia" 947 "Europe" 408 "Oceania" 6}
+                                "Year 2008"
+                                {"Africa" 973 "America" 914 "Asia" 4054 "Europe" 732 "Oceania" 34}})))
+
+
 ;;this is the background, static if you will...
 (defn chart-render []
   [:div {:style {:min-width "310px" :max-width "800px" 
@@ -214,4 +229,26 @@
 ;;atom for changes (or channel), pushing data as updates come in.
 
 
-#_(push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)} "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}})
+#_(push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)}
+                     "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}})
+
+;;how would we implement drop-series?
+
+;;there's a nice set of commands we can hook up, a little language 
+
+;;if we add a series, we need to add data for
+;;the series for each category.
+(defn add-series!      [c k cats] )
+
+;;If we a drop a series, we need to remove
+;;the series from each category.
+(defn drop-series!     [c k]      )
+
+;;if we add a category, we're adding
+;;an entry for each series...
+(defn add-category!    [c k sers] )
+
+(defn drop-category!   [c cat]    )
+
+
+;;Another option is to re-render the chart entirely on changes....
