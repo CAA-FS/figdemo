@@ -20,7 +20,8 @@
                  [cljsjs/rc-slider "4.0.1-0"] ;;alt.
                  ;;for charting examples.
                  [cljsjs/highcharts "5.0.4-0"]
-                 [cljsjs/vega-lite "1.2.0-0"]]
+                 [cljsjs/vega-lite "1.2.0-0"]
+                 ]
 
   :plugins [[lein-figwheel "0.5.4-7"]
             [lein-cljsbuild "1.1.3" :exclusions [[org.clojure/clojure]]]]
@@ -105,7 +106,8 @@
 
   :profiles {:dev {:dependencies [[binaryage/devtools "0.7.2"]
                                   [figwheel-sidecar "0.5.4-7"]
-                                  [com.cemerick/piggieback "0.2.1"]]
+                                  [com.cemerick/piggieback "0.2.1"]                               
+                                  ]
                    ;; need to add dev source path here to get user.clj loaded
                    :source-paths ["src" "dev"]
                    ;; for CIDER

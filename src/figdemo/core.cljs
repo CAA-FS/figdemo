@@ -14,7 +14,9 @@
             [figdemo.high :as high]
             [reagent.core :as r]
             [re-com.core   :refer [h-box gap v-box hyperlink-href p] :as recom]
-            [re-com.util   :refer [item-for-id]]))
+            [re-com.util   :refer [item-for-id]]
+            ;[cljsjs.vega-lite]
+            ))
 
 (enable-console-print!)
 
@@ -55,6 +57,7 @@
 ;;testing out to see if a separate atom will work.
 ;(def menu-items (r/atom nil))
 
+;;obe 
 ;;we can use channels to munge around the async wierdness.
 (defn draw-current-chart []
   (when-let [chrt (io/current-file)]
@@ -425,12 +428,13 @@
     (let [{:keys [xmin xmax ymin ymax]} bounds
           w (- xmax xmin)
           h (- ymax ymin)
-          rand-point (fn []
+          rand-point (fn []                       
                        [(+ xmin (rand-int w))
                         (+ ymin (rand-int h))])]
-      (repeatedly n #(nearest-trends (rand-point))))))
+      (map (fn [_] (nearest-trends (rand-point))) (range n)))))
                   
 ;;allows us to select numeric ranges for the key.
+;;f(ac rc) -> (current
 (defn ->range-selector [& {:keys [function-data]}]
   (let [function-data (or function-data (r/atom {:AC 0 :RC 0}))]
     (fn [& [ac-rc]]      
@@ -524,6 +528,8 @@
                chart-node]]]]]
           #_[:div {:id "bmi"}
              [bmi/bmi-component]]
+          #_[:div {:id "gyp"}           
+             [gyp/root]]
           
           ]]))))
 

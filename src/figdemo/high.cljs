@@ -149,7 +149,7 @@
 
 
 ;;can we just jam fill and surplus on there? 
-(def blank-tad-config []
+(def blank-tad-config
   (->bar-chart
    :title    "Performance by AC / RC Supply Mix"
    :subtitle "SRC"
@@ -161,6 +161,26 @@
                                 {"Africa" 133 "America" 156 "Asia" 947 "Europe" 408 "Oceania" 6}
                                 "Year 2008"
                                 {"Africa" 973 "America" 914 "Asia" 4054 "Europe" 732 "Oceania" 34}})))
+
+;;the tad chart format is
+
+;;                                        [|] Policy1
+;;                                        [@] Policy2 
+;;   |                   
+;;   |             |             |
+;;   |@            |@            |@
+;;  period1      period2       period3
+
+;;               [ac rc]
+;;                 src
+;;                Demand
+;;           
+
+
+;;looking at our db, we can do facets based off  
+
+
+;(defn tad-chart [
 
 
 ;;this is the background, static if you will...
@@ -252,3 +272,5 @@
 
 
 ;;Another option is to re-render the chart entirely on changes....
+
+;;our chart for tad is
