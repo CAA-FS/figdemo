@@ -373,10 +373,10 @@
 
 (defn coords->bounds [xys]
   (let [[x0 y0] (first xys)
-        left   (atom x0)
-        right  (atom x0)
-        top    (atom y0)
-        bottom (atom y0)
+        left    (atom x0)
+        right   (atom x0)
+        top     (atom y0)
+        bottom  (atom y0)
         do-n (fn [n l r]
                (do (when (< n @l)
                      (reset! l n))
@@ -400,6 +400,14 @@
                       (take 3 p))]
       (->> (get-in (:db @app-state) k)
            (map first)))))
+
+;;this is still reporting :bmi, we don't want that.
+(defn current-data []
+  (when (current-supply)
+    (when-let [d (get @app-state :function-data)]
+      (let [{:keys [AC RC]} @d]
+        [(int AC) (int RC)]))))
+
 ;;note: since we have a limited number of keys, we can probably
 ;;cache this...
 (defn sample-range []
@@ -414,14 +422,25 @@
   ([p xy]
    (let [newp (conj (into [] (butlast p)) xy)]
      (nearest-samples newp)))
-  ([p] (tad/nearest-samples (:db @app-state) p))
+  ([p]
+   (let [db (:db @app-state)]
+     (when db
+       (if-let [res (get db p)]
+         res
+         (tad/nearest-samples db p)))))
   ([]
    (when-let [xs (seq (current-path))]
-     (nearest-samples xs))))
+     (when (= (count xs) 4)
+       (nearest-samples xs)))))
 
-(defn nearest-trends [xy]
-  (when-let [xs (seq (nearest-samples (current-path) xy))]
-    (into {} xs)))
+(defn nearest-trends
+  ([xy]
+   (when-let [xs (seq (nearest-samples (current-path) xy))]
+     (into [] (map (fn [[k v]]
+                     {:Period k
+                      :Response (nth v 2)})) xs)))
+  ([] (when-let [acrc (current-data)]                 
+        (nearest-trends acrc))))
 
 (defn random-samples [n]
   (when-let [bounds (sample-range)]
@@ -435,8 +454,9 @@
                   
 ;;allows us to select numeric ranges for the key.
 ;;f(ac rc) -> (current
-(defn ->range-selector [& {:keys [function-data]}]
-  (let [function-data (or function-data (r/atom {:AC 0 :RC 0}))]
+(defn ->range-selector [& {:keys [function-data f]}]
+  (let [function-data (or function-data (r/atom {:AC 0 :RC 0}))
+        f             (or f   (fn [x y] (+ (int x) (int y))))]
     (fn [& [ac-rc]]      
       (when-let [sr (sample-range)]
         (let [{:keys [xmin xmax ymin ymax measure]} sr
@@ -447,25 +467,46 @@
            [[:AC [xmin xmax]]
             [:RC [ymin ymax]]]
            [measure []]
-           (fn [x y] (+ (int x) (int y)))
+           f
            function-data
-           :title "z = AC + RC"])))))
+           :title (str "z = " measure "(AC,RC)")])))))
 
 ;;we need a relation between the app data, the path, and the
 ;;measure.  Basically, we need to tap into
 ;;the functions in tadmudi/
-(defn current-responses []
+(defn current-trends []
   (when-let [samp (current-samples)]
     (when (vector? samp) samp)))
-   
+
+(defn ->property [nm init]
+  (let [p  (r/atom init) 
+        _  (bind-> p app-state (fn [s newval] (assoc s nm newval)))]
+    p))
+
+(defn trends->txt [xs]
+  (when @xs
+    (reduce (fn [acc m]
+              (conj acc 
+                    [:div {}
+                     [:label (str (m :Period) ": " (m :Response))]
+                     ])) [:div {:id "blah"}]  @xs)))
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
   (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
         selection     (r/atom nil)        
-        function-data (r/atom {:AC 0 :RC 0})
-        map-path      (r/atom [])
+        function-data (r/atom {:AC 0 :RC 0});(->property  :function-data {:AC 0 :RC 0})
+        map-path      (r/atom []) ;(->property  :current-path  [])
+        nt            (r/atom nil)
+        update-trends! (fn [x y] (let [tr   (nearest-trends)
+                                        _   (reset! nt tr)
+                                       ]
+                                   tr
+                                        ;(+ x y)
+                                     ))
         _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
+        _             (swap! app-state assoc :function-data function-data)
+        ;_            (bind-> function-data app-state (fn [s newval] (assoc s :function-data newval)))        
         ]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
@@ -475,8 +516,8 @@
                                 (if-let [v (get @selection k)]
                                   (conj acc [k (as-val v)])
                                   (reduced nil))) []  menu)
-            _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))
-            xy       (second (last the-path))]
+            _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))           
+            ]
         [v-box
          :size     "auto" 
          :gap      "10px"
@@ -495,14 +536,12 @@
           [:div {:id "Coordinates"}
            ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
            ;;In this case, x : ac, y : rc, z : measure
-           [(->range-selector :function-data function-data) (current-supply)]]
+           [(->range-selector :function-data function-data :f update-trends!)
+            (current-supply)]]
           [:div {:id "sample"}
-           (when-let [samp (current-responses)]
-             (reduce (fn [acc m]
-                       (conj acc 
-                             [:div {}
-                              [:label (str (m :Period) ": " (m :Response))]
-                               ])) [:div {:id "blah"}]  samp))]
+           ;(when-let [samp @nt #_(nearest-trends) #_(current-trends)]
+           [trends->txt nt]]
+                                        ;)]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
