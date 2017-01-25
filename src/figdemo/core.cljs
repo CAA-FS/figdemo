@@ -12,6 +12,7 @@
             [figdemo.spork.util.table :as tbl]
             [figdemo.bmi  :as bmi]
             [figdemo.high :as high]
+            [figdemo.heat :as heat] ;;vega-based heatmap
             [reagent.core :as r]
             [re-com.core   :refer [h-box gap v-box hyperlink-href p] :as recom]
             [re-com.util   :refer [item-for-id]]
@@ -23,7 +24,12 @@
 (println "This text is printed from src/figdemo/core.cljs. Go ahead and edit it and see reloading in action.")
 (println "heyo!!!")
 
-
+;; define your app data so that it doesn't get over-written on reload
+(defonce app-state (r/atom {:text "Hello world!"
+                            :table-node "Table goes here!"
+                            :chart-node "Chart-goes here!"
+                            :tree-node  "Tree goes here!"
+                            }))
 
 ;;UTILS
 (def structures #{"{" "["})
@@ -47,12 +53,37 @@
               (fn [atm k old new]
                 (swap! r f new)))))
 
-;; define your app data so that it doesn't get over-written on reload
-(defonce app-state (r/atom {:text "Hello world!"
-                            :table-node "Table goes here!"
-                            :chart-node "Chart-goes here!"
-                            :tree-node  "Tree goes here!"
-                            }))
+;;not really using this guy...
+(defn ->property [nm init]
+  (let [p  (r/atom init) 
+        _  (bind-> p app-state (fn [s newval] (assoc s nm newval)))]
+    p))
+
+(defn coords->bounds [xys]
+  (let [[x0 y0] (first xys)
+        left    (atom x0)
+        right   (atom x0)
+        top     (atom y0)
+        bottom  (atom y0)
+        do-n (fn [n l r]
+               (do (when (< n @l)
+                     (reset! l n))
+                   (when (> n @r)
+                     (reset! r n))))]
+    (do  (reduce (fn [acc [x y]]
+                   (do (do-n x left right)
+                       (do-n y bottom top))) nil xys)
+         {:xmin @left :xmax @right
+          :ymin  @bottom :ymax @top})))
+
+(defn log [msg v]
+  (do (println msg)
+      v))
+
+(defn atom? [x] (implements? IDeref x))
+
+
+
 
 ;;testing out to see if a separate atom will work.
 ;(def menu-items (r/atom nil))
@@ -270,15 +301,6 @@
         labels
         xs))
 
-;; (defn build-menu [choice-map p]
-;;   (-> (choice-tree choice-map p)
-;;       (choices->menu :labels (iterate inc 0))))
-
-(defn log [msg v]
-  (do (println msg)
-      v))
-
-(defn atom? [x] (implements? IDeref x))
 
 ;;we have to use this going to/from the text input to
 ;;clojure....not a huge deal, but it's something we  have
@@ -331,8 +353,7 @@
             ;;db is recomputed after every selection....if we retain the selection, we
             ;;should have our values...
             db  (into {} (for [[lbl choice-seq] menu-seq]
-                           (let [data   (r/atom  (let [id (lbl->idx lbl)
-                                                       _  (println [id n])]
+                           (let [data   (r/atom  (let [id (lbl->idx lbl)]
                                                    (when (<= id n)
                                                      (nth @path id))))
                                  choice (r/atom (when @data (find-choice-id choice-seq @data)))
@@ -361,43 +382,31 @@
 
 
 (defn current-path []    (get @app-state :current-path))
+;;an accessor for getting us a path-map...
+(defn path-map
+  ([]   (tad/path->map (current-path)))
+  ([nm] (tad/path->map (get @app-state nm))))
+
+;;based on the path-map
+;(:SRC :DemandSignal :SimulationPolicy :ResponseType :ACRC)
 
 ;;brittle..
-(defn current-measure []
-  (if-let [p (current-path)]
-    (nth (seq p) 2)))
+(defn current-measure [] (:ResponseType (path-map)))
+(defn current-supply  [] (:ACRC (path-map)))
 
+;;looking up values in our database...
 (defn current-samples []
   (when-let [xs (seq (current-path))]
     (get-in (:db @app-state) xs )))
 
-(defn coords->bounds [xys]
-  (let [[x0 y0] (first xys)
-        left    (atom x0)
-        right   (atom x0)
-        top     (atom y0)
-        bottom  (atom y0)
-        do-n (fn [n l r]
-               (do (when (< n @l)
-                     (reset! l n))
-                   (when (> n @r)
-                     (reset! r n))))]
-    (do  (reduce (fn [acc [x y]]
-                   (do (do-n x left right)
-                       (do-n y bottom top))) nil xys)
-         {:xmin @left :xmax @right
-          :ymin  @bottom :ymax @top})))
-
-(defn current-supply []
-  (when-let [p (seq (current-path))]
-    (when-let [xy (and (= (count p) 4)
-                       (last p))]
-      xy)))
+(defn butlast-path [p]
+  ((juxt :SRC :DemandSignal :SimulationPolicy :ResponseType)
+   p))
 
 (defn current-candidates []
-  (when-let [p (seq (current-path))]
-    (when-let [k (and (>= (count p) 3)
-                      (take 3 p))]
+  (when-let [p (path-map)]
+    (when-let [k (and (:ResponseType p)
+                      (butlast-path p))]
       (->> (get-in (:db @app-state) k)
            (map first)))))
 
@@ -425,20 +434,22 @@
   ([p]
    (let [db (:db @app-state)]
      (when db
-       (if-let [res (get db p)]
+       (if-let [res (get-in db p)]
          res
          (tad/nearest-samples db p)))))
   ([]
    (when-let [xs (seq (current-path))]
-     (when (= (count xs) 4)
+     (when (= (count xs) 5) ;;brittle!
        (nearest-samples xs)))))
 
 (defn nearest-trends
   ([xy]
    (when-let [xs (seq (nearest-samples (current-path) xy))]
-     (into [] (map (fn [[k v]]
-                     {:Period k
-                      :Response (nth v 2)})) xs)))
+     (into [] (map (fn [kv]
+                     (if (map? kv) kv
+                         (let [[k v] kv]
+                           {:Period   k
+                            :Response (nth v 2)}))) xs))))
   ([] (when-let [acrc (current-data)]                 
         (nearest-trends acrc))))
 
@@ -450,8 +461,32 @@
           rand-point (fn []                       
                        [(+ xmin (rand-int w))
                         (+ ymin (rand-int h))])]
-      (map (fn [_] (nearest-trends (rand-point))) (range n)))))
-                  
+      (map (fn [_] (let [xy (rand-point)]
+                     [xy (nearest-trends xy)])) (range n)))))
+
+(defn enumerated [bounds]
+  (let [{:keys [xmin xmax ymin ymax]} bounds]
+    (* (- xmax xmin) (- ymax ymin))))
+
+(defn sparse-samples [n]
+  (when-let [bounds (sample-range)]
+    (let [{:keys [xmin xmax ymin ymax]} bounds
+          w (- xmax xmin)
+          h (- ymax ymin)]
+      (if (<= (* w h) n)
+        (for [x (range xmin xmax)
+              y (range ymin ymax)]
+          (mapv (fn [r]
+                  (merge {:x x :y y} r)) (nearest-trends [x y])))
+        (random-samples n)))))
+
+(defn sample-surface []
+  (when-let [bounds (sample-range)]
+    (let [total (enumerated bounds)]
+      (apply concat (if (< total 1000)
+                      (sparse-samples total)
+                      (sparse-samples 1000))))))
+
 ;;allows us to select numeric ranges for the key.
 ;;f(ac rc) -> (current
 (defn ->range-selector [& {:keys [function-data f]}]
@@ -478,11 +513,6 @@
   (when-let [samp (current-samples)]
     (when (vector? samp) samp)))
 
-(defn ->property [nm init]
-  (let [p  (r/atom init) 
-        _  (bind-> p app-state (fn [s newval] (assoc s nm newval)))]
-    p))
-
 (defn trends->txt [xs]
   (when @xs
     (reduce (fn [acc m]
@@ -490,6 +520,12 @@
                     [:div {}
                      [:label (str (m :Period) ": " (m :Response))]
                      ])) [:div {:id "blah"}]  @xs)))
+
+;;we want to have a chart rendering channel.
+;;Basically, communicate with the chart by pushing new trends to a channel,
+;;then have interested subscribers update based on said trend.
+;;Using channels simplifies this significantly....
+;;Alternately, we can use atoms...
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
@@ -506,7 +542,6 @@
                                      ))
         _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
         _             (swap! app-state assoc :function-data function-data)
-        ;_            (bind-> function-data app-state (fn [s newval] (assoc s :function-data newval)))        
         ]
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
@@ -530,7 +565,7 @@
            ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
            ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
            ;;just pass in the atom though....
-           [(->map-selector map-path :labels ["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
+           [(->map-selector map-path :labels tad/path-labels #_["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
            ]
           ;;given a path, we'll let the last segment be reactive....
           [:div {:id "Coordinates"}
@@ -539,9 +574,9 @@
            [(->range-selector :function-data function-data :f update-trends!)
             (current-supply)]]
           [:div {:id "sample"}
-           ;(when-let [samp @nt #_(nearest-trends) #_(current-trends)]
+           ;;Note: we had to wrap a former call to (nearest-trends) in an atom, nt, and pass
+           ;;that as the argument for trends->txt.  Otherwise, we ended up with looping re-rendering.
            [trends->txt nt]]
-                                        ;)]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
@@ -569,6 +604,7 @@
              [bmi/bmi-component]]
           #_[:div {:id "gyp"}           
              [gyp/root]]
+          [heat/vega-root]
           
           ]]))))
 

@@ -24,6 +24,13 @@
    {:name "PostSurge"
     :data [973 914 4054 732 34]}])
 
+(defn empty-data [series cats]
+  (let [empty (into []
+                 (range (if (number? cats) cats (count cats))))]
+    (into []
+          (for [s series]
+            {:name s :data empty}))))
+
 ;;note, our charts are predicated on specific performance metrics...
 ;;note: categories needs to be a seq of strings we expect to
 ;;label the x axis
@@ -31,32 +38,36 @@
 ;;we should be able to treat  {series [data1 ... datan]}
 ;;as a map.
 
-(defn tad-config [metric categories series]
-  (let [vd (case metric
-             "Fill"    "% Fill"
-             "Surplus" "UICs")]
-    {:chart {:type "bar"}
-     :title {:text "Performance by Surge Period"}
-     :subtitle {:text "Source: Interpolated Experimental Runs"}
-     :xAxis {:categories categories
+(defn tad-config
+  ([metric categories series]
+   (let [vd (case metric
+              "Fill"    "% Fill"
+              "Surplus" "UICs")]
+     {:chart {:type "bar"}
+      :title {:text "Performance by Surge Period"}
+      :subtitle {:text "Source: Interpolated Experimental Runs"}
+      :xAxis {:categories categories
              :title {:text nil}}
-     :yAxis {:min 0
-             :title {:text (str metric "(" vd ")")
-                     :align "high"}
-             :labels {:overflow "justify"}}
-     :tooltip {:valueSuffix vd}
-     :plotOptions {:bar {:dataLabels {:enabled true}}}
-     :legend {:layout "vertical"
-              :align "right"
-              :verticalAlign "top"
-              :x -40
-              :y 100
-              :floating true
-              :borderWidth 1
-              :shadow true}
-     :credits {:enabled false}
-     :series series
-     }))
+      :yAxis {:min 0
+              :title  {:text (str metric "(" vd ")")
+                       :align "high"}
+              :labels {:overflow "justify"}}
+      :tooltip {:valueSuffix vd}
+      :plotOptions {:bar {:dataLabels {:enabled true}}}
+      :legend {:layout "vertical"
+               :align "right"
+               :verticalAlign "top"
+               :x -40
+               :y 100
+               :floating true
+               :borderWidth 1
+               :shadow true}
+      :credits {:enabled false}
+      :series series
+      }))
+  ([metric]
+   (let [d (empty-data ["PreSurge" "Surge" "PostSurge"] [metric])]
+     (tad-config metric ["PreSurge" "Surge" "PostSurge"] [metric]))))
 
 (def demo-series
   [{:name "Year 1800"
@@ -209,6 +220,7 @@
           _  (reset! chrt c)]
       c)))
 
+;;takes a specification for the chart, and creates and mounts our chart from it.
 (defn chart-component [& {:keys [spec chartref] :or {spec demo-config}}]
   (let [c  (->mounted-chart spec)
         _  (when chartref (reset! chartref c))]
@@ -249,8 +261,9 @@
 ;;atom for changes (or channel), pushing data as updates come in.
 
 
-#_(push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)}
-                     "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}})
+(defn random-data []
+  (push-data! @chrt {"Year 1900" {"America" (rand-int 500) "Africa" (rand-int 500)}
+                     "Year 2008" {"Asia" (rand-int 600) "Europe" (rand-int 700)}}))
 
 ;;how would we implement drop-series?
 

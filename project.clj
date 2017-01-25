@@ -20,7 +20,9 @@
                  [cljsjs/rc-slider "4.0.1-0"] ;;alt.
                  ;;for charting examples.
                  [cljsjs/highcharts "5.0.4-0"]
-                 [cljsjs/vega-lite "1.2.0-0"]
+;                 [cljsjs/vega-lite "1.2.0-0"]
+                 [cljsjs/vega "2.6.0-0"]
+                 [metosin/vega-tools "0.2.0"]
                  ]
 
   :plugins [[lein-figwheel "0.5.4-7"]

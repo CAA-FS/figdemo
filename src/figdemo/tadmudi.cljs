@@ -45,19 +45,32 @@
 
 ;;our taxonomy is
 ;;[SRC
-;; [SimulationPolicy DemandSignal AnalysisType]
-;; ResponseType
-;; [ACInventory RCInventory]
-;; Period
-;; Response]
+;;   DemandSignal
+;;      SimulationPolicy
+;;        ResponseType
+;;           [ACInventory RCInventory]
+;;              Period/Response]
 (defn path-key [{:keys [ACInventory RCInventory
                         SRC SimulationPolicy DemandSignal AnalysisType
                         ResponseType]}]
   [SRC
-   [SimulationPolicy DemandSignal AnalysisType]
-   ResponseType
+   DemandSignal
+   SimulationPolicy ;; #_[DemandSignal SimulationPolicy  AnalysisType] ;;altered to pull out DS
+   ResponseType      ;;fill/surplus  - currently limited to fill..
    [ACInventory RCInventory]])
-  
+
+;;Defining the structure of our db.  Note: it'd be better if we can derive this
+;;structurally, rather than presume what our structure looks like.
+(def path-keys [:SRC :DemandSignal :SimulationPolicy :ResponseType :ACRC])
+(def path-labels (mapv name path-keys))
+
+;;derive a map-based view of a path key, based on the ordered set of labels
+;;in our taxonomy.
+(defn path->map [p]
+  (into {} 
+        (map vector path-keys
+             p)))  
+
 (defn distinct-fields [xs]
   (reduce (fn [acc r]
             (reduce-kv (fn [acc k v]
@@ -95,8 +108,10 @@
 ;;what if we can't find a sample?
 ;;we can use sample-neighbors to lookup the map of samples
 ;;that we can interpolate off of.
-(defn sample-neighbors [db [src [pol demand atype] rtype [ac rc]]]
-  (get-in db [src [pol demand atype] rtype]))
+
+;:SRC :DemandSignal :SimulationPolicy :ResponseType :ACRC
+(defn sample-neighbors [db [src demand pol rtype [ac rc]]]
+  (get-in db [src demand pol rtype]))
 
 ;;Given our neighboring samples...
 ;;we can get the xy-pairs from them...
