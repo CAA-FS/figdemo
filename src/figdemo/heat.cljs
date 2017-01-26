@@ -297,14 +297,15 @@
 
 
 
+;;works if we have a normalized set of [x y z]
+;;coordinates.
 (defn data->heatspec! [xs]
     {:width 400,
      :height 400,
      :padding "strict",
      :data
-     [{:name "table",
-       :values
-       xs}],
+     [{:name  "table",
+       :values xs}],
      :scales
      [{:name "x",
        :type "ordinal",
@@ -345,118 +346,394 @@
          :height {:scale "y", :band true},
          :fill {:scale "z", :field "z"}}}}]})
 
+;(defn layers->heat-specs [groups]
+  
 
-;; (defn layers->heatmap [xs]
-;;    {:width 400,
-;;      :height 400,
-;;      :padding "strict",
-;;      :data
-;;      [{:name "table",
-;;        :values
-;;        xs}],
-;;     "scales" [
-;;              {
-;;       "name" "g",
-;;       "type" "ordinal",
-;;       "range" "height",
-;;       "padding" 0.15,
-;;       "domain" {
-;;         "data" "barley", "field" "site",
-;;         "sort" {"field" "yield", "op" "median"}
-;;       },
-;;       "reverse" true
-;;     },
-;;     {
-;;       "name" "x",
-;;       "type" "linear",
-;;       "nice" true,
-;;       "range" "width",
-;;       "domain" {"data" "barley", "field" "yield"}
-;;     },
-;;     {
-;;       "name" "c",
-;;       "type" "ordinal",
-;;       "range" "category10",
-;;       "domain" {"data" "barley", "field" "year"}
-;;     }
-;;   ],
-;;   "axes" [
-;;     {"type" "x", "scale" "x"}
-;;   ],
-;;   "legends" [
-;;     {"fill" "c", "title" "year"}
-;;   ],
-;;   "marks" [
-;;     {
-;;       "name" "sites",
-;;       "type" "group",
-;;       "from" {
-;;         "data" "barley",
-;;         "transform" [{"type" "facet", "groupby" ["site"]}]
-;;       },
-;;       "scales" [
-;;         {
-;;           "name" "y",
-;;           "type" "ordinal",
-;;           "range" "height",
-;;           "points" true,
-;;           "padding" 1.2,
-;;           "domain" {
-;;             "data" "barley", "field" "variety",
-;;             "sort" {"field" "yield", "op" "median"}
-;;           },
-;;           "reverse" true
-;;         }
-;;       ],
-;;       "axes" [
-;;         {
-;;           "type" "y",
-;;           "scale" "y",
-;;           "tickSize" 0,
-;;           "properties" {"axis" {"stroke" {"value" "transparent"}}}
-;;         }
-;;       ],
-;;       "properties" {
-;;         "enter" {
-;;           "x" {"value" 0.5},
-;;           "y" {"scale" "g", "field" "key"},
-;;           "height" {"scale" "g", "band" true},
-;;           "width" {"field" {"group" "width"}},
-;;           "stroke" {"value" "#ccc"}
-;;         }
-;;       },
-;;       "marks" [
-;;         {
-;;           "type" "symbol",
-;;           "properties" {
-;;             "enter" {
-;;               "x" {"scale" "x", "field" "yield"},
-;;               "y" {"scale" "y", "field" "variety"},
-;;               "size" {"value" 50},
-;;               "stroke" {"scale" "c", "field" "year"},
-;;               "strokeWidth" {"value" 2},
-;;               "fill" {"value" "transparent"}
-;;             }
-;;           }
-;;         }
-;;       ]
-;;     },
-;;     {
-;;       "type" "text",
-;;       "from" {"mark" "sites"},
-;;       "properties" {
-;;         "enter" {
-;;           "x" {"field" {"group" "width"}, "mult" 0.5},
-;;           "y" {"field" "y", "offset" -2},
-;;           "fontWeight" {"value" "bold"},
-;;           "text" {"field" "datum.site"},
-;;           "align" {"value" "center"},
-;;           "baseline" {"value" "bottom"},
-;;           "fill" {"value" "#000"}
-;;         }
-;;       }
-;;     }
-;;   ]
+(defn re-key [m]
+  (cond (map? m) (into {} (map (fn [[k v]]
+                                 [(if (string? k) (keyword k) k)
+                                  (re-key v)]))
+                       (seq m))
+        (seqable? m) (into (empty m) (map (fn [x] (re-key x))) m)
+        :else m))
+
+(defn json-generate 
+   "Returns a newline-terminate JSON string from the given ClojureScript data." 
+   [data] 
+   (str (.stringify js/JSON (clj->js data)) "\n")) 
+  
+(defn json-parse 
+  "Returns ClojureScript data for the given JSON string." 
+  [line & {:keys [keywordize?] :or {keywordize? true}}]
+  (let [x (js->clj (.parse js/JSON line))]
+    (if keywordize? (re-key x) x)))                           
+
+;;so, vega is pretty badass.
+;;The deal is, once you know how to transform data..
+;;ala faceting, things are easier..
+;;
+
+;;so, rather than manually  grouping EVERYTHINg...
+;;we don't we do this...
+
+;;oooookayy...lets make some helpers because this shit is wack.
+
+(defn ->xy-facet [& {:keys [name from xfield yfield rowfield trendfield]}]
+  {:name name,
+   :type "group",
+   :from {:data from, :transform [{:type "facet", :groupby [rowfield]}]},
+   :scales
+   [{:name "y",
+     :type "ordinal",
+     :range "height",
+     :points true,
+     :padding 1.2,
+     :domain
+     {:data from,
+      :field yfield,
+      :sort {:field xfield, :op "median"}},
+     :reverse true}],
+   :axes
+   [{:type "y",
+     :scale "y",
+     ;:tickSize 0,
+     ;:properties {:axis {:stroke {:value "transparent"}}}
+     }],
+   :properties
+   {:enter
+    {:x {:value 0.5},
+     :y {:scale "group", :field "key"},
+     :height {:scale "group", :band true},
+     :width {:field {:group "width"}},
+     :stroke {:value "#ccc"}}},
+   :marks
+   [{:type "symbol",
+     :properties
+     {:enter
+        {:x {:scale "x", :field xfield},
+         :y {:scale "y", :field yfield},
+         :size {:value 50},
+         :stroke {:scale "color", :field trendfield},
+         :strokeWidth {:value 2},
+         :fill {:value "transparent"}}}}]})
+
+;;presumes a pre-existing scale for "x"
+(defn ->xy-heat-facet [& {:keys [name from xfield yfield rowfield trendfield]}]
+  {:name   name
+   :type   "group"
+   :from  {:data      from
+           :transform [{:type    "facet"
+                        :groupby [rowfield]}]}
+   :scales
+   [{:name    "y"
+     :type    "ordinal"
+     :range   "height"
+     :points  true
+     :padding 1.2
+     :domain  {:data  from
+               :field yfield
+               :sort  {:field xfield :op "median"}}
+     :reverse true}]
+   :axes
+   [{:type  "y"
+     :scale "y"
+     ;:tickSize 0,
+     ;:properties {:axis {:stroke {:value "transparent"}}}
+     }]
+   :properties
+   {:enter
+    {:x      {:value 0.5}
+     :y      {:scale "group", :field "key"}
+     :height {:scale "group", :band  true}
+     :width  {:field {:group "width"}}
+     :stroke {:value "#ccc"}}}
+    :marks
+   [{:type "rect"
+     :from {:data from}
+     :properties
+     {:enter
+      {:x      {:scale "x" :field xfield}
+       :width  {:scale "x" :band  true}
+       :y      {:scale "y" :field yfield}
+       :height {:scale "y" :band  true}
+       :fill   {:scale "z" :field trendfield}}}}]})
+
+
+(defn ->facet-scales [& {:keys [from group x color]}]
+  (let [[from rowfield valfield trendfield]
+        [from group x color]]
+    [{:name "group",
+      :type "ordinal",
+      :range "height",
+      :padding 0.15,
+      :domain
+      {:data from,
+       :field rowfield,
+       :sort {:field valfield, :op "median"}},
+      :reverse true}
+     {:name "x",
+      :type "linear",
+      :nice true,
+      :range "width",
+      :domain {:data from, :field valfield}}
+     ;;series...
+     {:name "color",
+      :type "ordinal",
+      :range "category10",
+      :domain {:data from, :field trendfield}}]))
+
+;;note: x and y will be the same for all surfaces in a
+;;heat-trellis...so.
+;; (defn ->facet-heat-scales [& {:keys [from group x y z color]}]
+;;   (let [[from rowfield valfield trendfield]
+;;         [from group x color]]
+;;     [{:name "group",
+;;       :type "ordinal",
+;;       :range "height",
+;;       :padding 0.15,
+;;       :domain
+;;       {:data from,
+;;        :field rowfield}
+;; ;       :sort {:field valfield, :op "median"}},
+;;       :reverse true}
+;;      {:name "x",
+;;       :type "ordinal",
+;;       :nice true,
+;;       :range "width",
+;;       :domain {:data from, :field valfield}}
+;;      ;;series...
+;;      {:name "color",
+;;       :type "ordinal",
+;;       :range "category10",
+;;       :domain {:data from, :field trendfield}}])))
+
+(defn datum [p]
+  (str "datum." p))
+
+
+(def test-data
+  (vec
+   (for [year [2009 2010 2011]
+         site    ["a" "b" "c"]
+         variety ["frankencense" "mir" "gold"]
+         ]
+     {"year"   year
+      "site"    site     
+      "variety" variety
+      "yield"   (rand-int 100)})))
+
+;;now lets draw heatmaps!
+;;x and y will be the same,
+;;ac and rc...
+;;so we should be able to stack our heatmaps
+;;only difference is
+;;ordinal scales.
+
+;;this is just a big compression drill to try to make an
+;;easy template for building scatter charts.
+(defn stacked! [the-data rowfield xfield yfield trendfield]
+  (let [data (if (map? the-data) the-data
+                 {:name "some-data"
+                  :values the-data})
+        from       (:name data)
+        stackname  (str rowfield "s")
+        ]
+    {:width  200,
+     :height 720,
+     :data   [data]
+     :scales (->facet-scales :from  from
+                             :group rowfield
+                             :x     xfield
+                             :color trendfield)
+     :axes    [{:type "x", :scale "x"}],
+     :legends [{:fill "color", :title trendfield}],
+     :marks
+     [(->xy-facet :name stackname :from from
+                  :xfield xfield :yfield yfield
+                  :rowfield rowfield
+                  :trendfield trendfield)
+      ;;site-names, this is "technically" a function of the preceding marks...
+      {:type "text",
+       :from {:mark stackname},
+       :properties
+       ;;place a mark at 1/2 the sub-group's width...
+       {:enter
+        {:x {:field {:group "width"}, :mult 0.5},
+         :y {:field "y", :offset -2}, ;;2 pts above the plot
+         :fontWeight {:value "bold"},
+         :text {:field (datum rowfield)},
+         :align {:value "center"},
+         :baseline {:value "bottom"},
+         :fill {:value "#000"}}}}]} ))
+
+(defn stack-test! []
+  (stacked! {:name "barley"
+             :url "http://idl.cs.washington.edu/projects/vega/examples/data/barley.json"}
+            "site"
+            "yield"
+            "variety"
+            "year"))
+
+(defn my-stack! []
+  (stacked! test-data "site" "yield" "variety" "year"))
+
+(def stackedgroups
+  {:width 200,
+   :height 720,
+   :data [{:name "barley", :url "http://idl.cs.washington.edu/projects/vega/examples/data/barley.json"}],
+   :scales
+   [{:name "group",
+     :type "ordinal",
+     :range "height",
+     :padding 0.15,
+     :domain
+     {:data "barley",
+      :field "site",
+      :sort {:field "yield", :op "median"}},
+     :reverse true}
+    {:name "x",
+     :type "linear",
+     :nice true,
+     :range "width",
+     :domain {:data "barley", :field "yield"}}
+    {:name "color",
+     :type "ordinal",
+     :range "category10",
+     :domain {:data "barley", :field "year"}}],
+   :axes [{:type "x", :scale "x"}],
+   :legends [{:fill "color", :title "year"}],
+   :marks
+   [{:name "sites",
+     :type "group",
+     :from {:data "barley", :transform [{:type "facet", :groupby ["site"]}]},
+     :scales
+     [{:name "y",
+       :type "ordinal",
+       :range "height",
+       :points true,
+       :padding 1.2,
+       :domain
+       {:data "barley",
+        :field "variety",
+        :sort {:field "yield", :op "median"}},
+       :reverse true}],
+     :axes
+     [{:type "y",
+       :scale "y",
+       :tickSize 0,
+       :properties {:axis {:stroke {:value "transparent"}}}}],
+     :properties
+     {:enter
+      {:x {:value 0.5},
+       :y {:scale "group", :field "key"},
+       :height {:scale "group", :band true},
+       :width {:field {:group "width"}},
+       :stroke {:value "#ccc"}}},
+     :marks
+     [{:type "symbol",
+       :properties
+       {:enter
+        {:x {:scale "x", :field "yield"},
+         :y {:scale "y", :field "variety"},
+         :size {:value 50},
+         :stroke {:scale "color", :field "year"},
+         :strokeWidth {:value 2},
+         :fill {:value "transparent"}}}}]}
+    {:type "text",
+     :from {:mark "sites"},
+     :properties
+     {:enter
+      {:x {:field {:group "width"}, :mult 0.5},
+       :y {:field "y", :offset -2},
+       :fontWeight {:value "bold"},
+       :text {:field "datum.site"},
+       :align {:value "center"},
+       :baseline {:value "bottom"},
+       :fill {:value "#000"}}}}]} )
+
+
+(def scatter
+  {:width 600,
+   :height 600,
+   :data
+   [{:name "iris",   :url "http://idl.cs.washington.edu/projects/vega/examples/data/iris.json"}
+    ;;common ordinal scale.  note: this is also what we're crossing by.
+    {:name "fields", :values ["petalWidth" "petalLength" "sepalWidth" "sepalLength"]}],
+   :scales
+   ;;establish common scales for the groups to use. 
+   [{:name "globalx",
+     :type "ordinal",
+     :range "width",
+     :round true,
+     :domain {:data "fields", :field "data"}}
+    {:name "globaly",
+     :type "ordinal",
+     :range "height",
+     :round true,
+     :reverse true,
+     :domain {:data "fields", :field "data"}}
+    {:name "c",
+     :type "ordinal",
+     :domain {:data "iris", :field "species"},
+     :range "category10"}],
+   :legends
+   [{:fill "c",
+     :title "Species",
+     :offset 10,
+     :properties
+     {:symbols
+      {:fillOpacity {:value 0.5}, :stroke {:value "transparent"}}}}],
+   :marks
+   [{:type "group",
+     ;;data xform builds a crosstab of original iris data...
+     ;;cross will produce a data object with two dummy fields,
+     ;;[a b], so a.data => computed field a, etc.
+     
+     :from {:data "fields", :transform [{:type "cross"}]},
+     ;;common or global properties....
+     :properties
+     ;;define how the subplots look by default.
+     {:enter
+      ;;each group will use the common ordinal scale for its data, but
+      ;;plot the field from the grouped dataset (a) onto the scale.
+      ;;and plot the 
+      {:x      {:scale "globalx", :field "a.data"}, ;;"petalWidth"  ex. = 0
+       :y      {:scale "globaly", :field "b.data"}, ;;"petalLength" ex. = 1
+       :width  {:scale "globalx", :band true, :offset -35},
+       :height {:scale "globaly", :band true, :offset -35},
+       :fill   {:value "#fff"},
+       :stroke {:value "#ddd"}}},
+     :scales
+     [{:name "x",
+       :range "width",
+       :zero false,
+       :round true,
+       :domain {:data "iris", :field {:parent "a.data"}}}
+      {:name "y",
+       :range "height",
+       :zero false,
+       :round true,
+       :domain {:data "iris", :field {:parent "b.data"}}}],
+     :axes
+     [{:type "x", :scale "x", :ticks 5}
+      {:type "y", :scale "y", :ticks 5}],
+     :marks
+     ;;for each subplot, plot the symbols thusly:
+     ;;lookup the data in iris...  i guess we have to have a
+     
+     [{:type "symbol",
+       :from {:data "iris"},
+       :properties
+       {:enter
+        {:x {:scale "x", :field {:datum {:parent "a.data"}}},
+         :y {:scale "y", :field {:datum {:parent "b.data"}}},
+         :fill {:scale "c", :field "species"},
+         :fillOpacity {:value 0.5}},
+        :update {:size {:value 36}, :stroke {:value "transparent"}},
+        :hover {:size {:value 100}, :stroke {:value "white"}}}}]}]})
+(defn layers->heatmap [xs]
+  
+ )
 
 ;; #_{:type "rect", :from {:data "table"},
 ;;        :properties #_{:enter {:x {:scale "x", :field "x"}
