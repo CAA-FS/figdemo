@@ -6,6 +6,9 @@
             [reagent.core :as r]
             [vega-tools.core :as vega-tools]))
 
+(defn datum [p]
+  (str "datum." p))
+
 ;;normalized linear heat gradient...
 (defn linear-heat [w h]
   (for [x (range w)
@@ -25,8 +28,6 @@
          :y y
          :z (/ (+ x y) mx)}))))
        
-
-
 ;;juuuuuust enough info to create a heatmap using vega.
 ;;For more general purpose solutions, we can use 
 (def raw-heat-spec
@@ -247,6 +248,14 @@
        :height {:scale "y", :band true},
        :fill {:scale "z", :field "z"}}}}]})
 
+;;assuming we have a fixed-width step between samples...
+;;and we want a larger displayed "tick step"
+;;we can generate the ticks we want to display
+;;we can define a function, ordinal-ticks, that
+;;will let us drop ticks.  this has to be done
+;;outside of vega, and provided via a values
+;;paramater in the spec somewhere for the axes.
+  
 (defn heat-spec! [n]
   {:width 800,
    :height 800,
@@ -257,13 +266,13 @@
      (vec (linear-heat n n))}],
    :scales
    [{:name "x",
-     :type "ordinal",
+     :type  "ordinal",
      :range "width",
      :domain {:data "table", :field "x"}
      ;:points true
      }
-    {:name "y",
-     :type "ordinal",
+    {:name  "y",
+     :type  "ordinal",
      :range "height",
      :reverse true ;else we get upside down...     
      :domain {:data "table", :field "y"},
@@ -289,12 +298,11 @@
      :from {:data "table"},
      :properties
      {:enter
-      {:x {:scale "x", :field "x"},
-       :width {:scale "x", :band true},
-       :y {:scale "y", :field "y"},
+      {:x      {:scale "x", :field "x"},
+       :width  {:scale "x", :band true},
+       :y      {:scale "y", :field "y"},
        :height {:scale "y", :band true},
-       :fill {:scale "z", :field "z"}}}}]})
-
+       :fill   {:scale "z", :field "z"}}}}]})
 
 
 ;;works if we have a normalized set of [x y z]
@@ -308,14 +316,14 @@
        :values xs}],
      :scales
      [{:name "x",
-       :type "ordinal",
+       :type  "ordinal",
        :range "width",
        :domain {:data "table", :field "x"}
                                         ;:points true
        }
       {:name "y",
-       :type "ordinal",
-       :range "height",
+       :type   "ordinal",
+       :range  "height",
        :reverse true ;else we get upside down...     
        :domain {:data "table", :field "y"},
                                         ;:points true
@@ -326,10 +334,10 @@
        :domain [0 #_0.25 #_0.5 #_0.75 1],
        :range ["#a50026" #_"#ffcc66" #_"#ffffbf" "#66ff33"],
        :zero false}],
-     :axes [{:type "x",
+     :axes [{:type  "x",
              :scale "x"
              :title "X-axis"
-             }
+              }
             {:type "y",
              :scale "y"
              :title "Y-axis"
@@ -341,11 +349,111 @@
        :properties
        {:enter
         {:x {:scale "x", :field "x"},
-         :width {:scale "x", :band true},
+         :width {:scale "x", :band true },
          :y {:scale "y", :field "y"},
          :height {:scale "y", :band true},
          :fill {:scale "z", :field "z"}}}}]})
 
+
+(defn data->heatfacet! [xs xfield yfield zfield rowfield & {:keys [xtitle ytitle]
+                                                            :or   {xtitle "X"
+                                                                   ytitle "Y"}}]
+  (let [from      "table"
+        stackname "thestack"]
+    {:width  800
+     :height 800
+     :padding "strict"
+     :data
+     [{:name   from
+       :values xs}]
+     :scales
+     [{:name "x"
+       :type  "ordinal"
+       :range "width"
+       :domain {:data from, :field xfield}
+       }
+      {:name "z",
+       :type "linear",
+       :domain {:data from :field zfield};[0 #_0.25 #_0.5 #_0.75 1],
+       :range ["#a50026" #_"#ffcc66" #_"#ffffbf" "#66ff33"],
+       :zero false}
+      
+      {:name "group",
+       :type "ordinal",
+       :range "height",
+       :padding 0.15,
+       :domain
+       {:data from,
+        :field rowfield,
+        #_:sort #_{:field valfield, :op "median"}},
+       :reverse true}]
+     ,
+     :marks
+     [{:name stackname
+       :type "group"
+       :from {:data from, :transform [{:type "facet", :groupby [rowfield]}]}
+       :properties ;;set up where to plot the marks for each group..
+         {:enter
+          {:x      {:value 0.5}, ;;all charts are stacked on the same x-coordinate, {:scale "group", :field "key"} makes them diagonal
+           :y      {:scale "group", :field "key"}, ;;gives us ordinal coords by group-key [0..n]
+           :height {:scale "group", :band true}, 
+           :width  {:field {:group "width"}},
+           :stroke {:value "#ccc"}}}
+        :legends [{:fill "z" :values [0.0  0.5  1.0] :orient "right"}]
+        :scales
+       [{:name "y",
+         :type "ordinal",
+         :range "height",
+         ;:points true,
+         ;:padding 1.2,
+         :domain
+         {:data from,
+          :field yfield,
+          },
+         :reverse true}],
+       :axes [{:type  "x",
+               :scale "x"
+               :title xtitle
+               }
+              {:type  "y",
+               :scale "y"
+               :title ytitle
+               }]       
+       :marks [{:type "rect",
+                :properties
+                {:enter
+                 {:x {:scale "x", :field xfield},
+                  :width {:scale "x", :band true },
+                  :y {:scale "y", :field yfield},
+                  :height {:scale "y", :band true},
+                  :fill   {:scale "z", :field zfield}}}}
+               #_{:type "text",
+                ;:from {:mark stackname},
+                :properties
+                ;;place a mark at 1/2 the sub-group's width...
+                {:enter
+                 {:x {:field {:group "width"}, :mult 0.5},
+                  :y {:field yfield, :offset 0}, ;;2 pts above the plot
+                  :fontWeight {:value "bold"},
+                  :text {:field rowfield #_(datum rowfield)},
+                  :align {:value "center"},
+                  :baseline {:value "bottom"},
+                  :fill {:value "#000"}}}}]
+       }
+      ;;labels
+      {:type "text",
+       :from {:mark stackname},
+       :properties
+       ;;place a mark at 1/2 the sub-group's width...
+       {:enter
+        {:x {:field {:group "width"}, :mult 0.5},
+         :y {:field yfield, :offset 0}, ;;2 pts above the plot
+         :fontWeight {:value "bold"},
+         :text {:value "HELLO!"} #_{:field (datum rowfield)},
+         :align {:value "center"},
+         :baseline {:value "bottom"},
+         :fill {:value "#000"}}}}
+      ]}))
 ;(defn layers->heat-specs [groups]
   
 
@@ -377,6 +485,15 @@
 ;;we don't we do this...
 
 ;;oooookayy...lets make some helpers because this shit is wack.
+;;this produces a valid "marks" spec fyi..
+;;Say we do our facets.....we want to lay out the data in a 2x4
+;;matrix.
+;;We just need to project from the key range onto the desired row/col
+;;say we have 8 groups.
+;;We'll render 0 1 2 3, 4,5,6,7
+;;so, coords would be..
+;;0,0 1,0 2,0 3,0
+;;
 
 (defn ->xy-facet [& {:keys [name from xfield yfield rowfield trendfield]}]
   {:name name,
@@ -394,17 +511,17 @@
       :sort {:field xfield, :op "median"}},
      :reverse true}],
    :axes
-   [{:type "y",
+   [{:type  "y",
      :scale "y",
      ;:tickSize 0,
      ;:properties {:axis {:stroke {:value "transparent"}}}
      }],
-   :properties
+   :properties ;;set up where to plot the marks for each group..
    {:enter
-    {:x {:value 0.5},
-     :y {:scale "group", :field "key"},
-     :height {:scale "group", :band true},
-     :width {:field {:group "width"}},
+    {:x      {:value 0.5}, ;;all charts are stacked on the same x-coordinate, {:scale "group", :field "key"} makes them diagonal
+     :y      {:scale "group", :field "key"}, ;;gives us ordinal coords by group-key [0..n]
+     :height {:scale "group", :band true}, 
+     :width  {:field {:group "width"}},
      :stroke {:value "#ccc"}}},
    :marks
    [{:type "symbol",
@@ -417,46 +534,49 @@
          :strokeWidth {:value 2},
          :fill {:value "transparent"}}}}]})
 
-;;presumes a pre-existing scale for "x"
-(defn ->xy-heat-facet [& {:keys [name from xfield yfield rowfield trendfield]}]
-  {:name   name
-   :type   "group"
-   :from  {:data      from
-           :transform [{:type    "facet"
-                        :groupby [rowfield]}]}
-   :scales
-   [{:name    "y"
-     :type    "ordinal"
-     :range   "height"
-     :points  true
-     :padding 1.2
-     :domain  {:data  from
-               :field yfield
-               :sort  {:field xfield :op "median"}}
-     :reverse true}]
-   :axes
-   [{:type  "y"
-     :scale "y"
-     ;:tickSize 0,
-     ;:properties {:axis {:stroke {:value "transparent"}}}
-     }]
-   :properties
-   {:enter
-    {:x      {:value 0.5}
-     :y      {:scale "group", :field "key"}
-     :height {:scale "group", :band  true}
-     :width  {:field {:group "width"}}
-     :stroke {:value "#ccc"}}}
-    :marks
-   [{:type "rect"
-     :from {:data from}
-     :properties
-     {:enter
-      {:x      {:scale "x" :field xfield}
-       :width  {:scale "x" :band  true}
-       :y      {:scale "y" :field yfield}
-       :height {:scale "y" :band  true}
-       :fill   {:scale "z" :field trendfield}}}}]})
+;;presumes a pre-existing scale for "x".
+;;Note: we don't have to do this, since we don't care about a
+;;shared axis, we can pass in the x and y scales/axes for each chart
+;;as in the heat-map spec..
+;; (defn ->xy-heat-facet [& {:keys [name from xfield yfield rowfield trendfield]}]
+;;   {:name   name
+;;    :type   "group"
+;;    :from  {:data      from
+;;            :transform [{:type    "facet"
+;;                         :groupby [rowfield]}]}
+;;    :scales
+;;    [{:name    "y"
+;;      :type    "ordinal"
+;;      :range   "height" ;;plot across the group's height
+;;      :points  false    ;;don't think we use points here.
+;;      :padding 1.2
+;;      :domain  {:data  from
+;;                :field yfield
+;;                #_:sort  #_{:field xfield :op "median"}}
+;;      :reverse true}]
+;;    :axes
+;;    [{:type  "y"
+;;      :scale "y"
+;;      ;:tickSize 0,
+;;      ;:properties {:axis {:stroke {:value "transparent"}}}
+;;      }]
+;;    :properties
+;;    {:enter
+;;     {:x      {:value 0.5}
+;;      :y      {:scale "group", :field "key"}
+;;      :height {:scale "group", :band  true}
+;;      :width  {:field {:group "width"}}
+;;      :stroke {:value "#ccc"}}}
+;;     :marks
+;;    [{:type "rect"
+;;      :from {:data from}
+;;      :properties
+;;      {:enter
+;;       {:x      {:scale "x" :field xfield}
+;;        :width  {:scale "x" :band  true}
+;;        :y      {:scale "y" :field yfield}
+;;        :height {:scale "y" :band  true}
+;;        :fill   {:scale "z" :field trendfield}}}}]})
 
 
 (defn ->facet-scales [& {:keys [from group x color]}]
@@ -507,8 +627,6 @@
 ;;       :range "category10",
 ;;       :domain {:data from, :field trendfield}}])))
 
-(defn datum [p]
-  (str "datum." p))
 
 
 (def test-data
@@ -521,6 +639,21 @@
       "site"    site     
       "variety" variety
       "yield"   (rand-int 100)})))
+
+(def test-heat
+  (let [xmax 40
+        ymax 40]
+    (vec (for [ac     (range 5 xmax)
+               rc     (range 10 ymax)
+               period ["PreSurge" "Surge" "PostSurge"]]
+         {:AC ac
+          :RC rc
+          :Period period
+          :Fill (case period
+                  "PreSurge" (rand)
+                  "Surge"    (/ (+ ac rc) (+ xmax ymax))
+                  (min (/ (+ (* ac 3.0) rc) (+ xmax ymax)) 1.0))}))))
+             
 
 ;;now lets draw heatmaps!
 ;;x and y will be the same,
@@ -566,6 +699,44 @@
          :baseline {:value "bottom"},
          :fill {:value "#000"}}}}]} ))
 
+;;identical to stacked, but provides a unique xaxis for each
+;;facet.
+(defn stacked-multiple-x! [the-data rowfield xfield yfield trendfield]
+  (let [data (if (map? the-data) the-data
+                 {:name "some-data"
+                  :values the-data})
+        from       (:name data)
+        stackname  (str rowfield "s")
+        ]
+    {:width  200,
+     :height 720,
+     :data   [data]
+     :scales (->facet-scales :from  from
+                             :group rowfield
+                             :x     xfield
+                             :color trendfield)
+     :legends [{:fill "color", :title trendfield}],
+     :marks
+     [(-> (->xy-facet :name stackname :from from
+                      :xfield xfield :yfield yfield
+                      :rowfield rowfield
+                      :trendfield trendfield)
+          (update   :axes   (fn [x] (conj (or x [])
+                               {:type "x", :scale "x"}))))
+      ;;site-names, this is "technically" a function of the preceding marks...
+      {:type "text",
+       :from {:mark stackname},
+       :properties
+       ;;place a mark at 1/2 the sub-group's width...
+       {:enter
+        {:x {:field {:group "width"}, :mult 0.5},
+         :y {:field "y", :offset -2}, ;;2 pts above the plot
+         :fontWeight {:value "bold"},
+         :text {:field (datum rowfield)},
+         :align {:value "center"},
+         :baseline {:value "bottom"},
+         :fill {:value "#000"}}}}]}))
+
 (defn stack-test! []
   (stacked! {:name "barley"
              :url "http://idl.cs.washington.edu/projects/vega/examples/data/barley.json"}
@@ -576,6 +747,9 @@
 
 (defn my-stack! []
   (stacked! test-data "site" "yield" "variety" "year"))
+
+(defn my-stack-xs! []
+  (stacked-multiple-x! test-data "site" "yield" "variety" "year"))
 
 (def stackedgroups
   {:width 200,
