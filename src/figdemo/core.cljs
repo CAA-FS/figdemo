@@ -328,7 +328,6 @@
 ;;so we have a seq of selected-choice-ids (atoms) that get altered.
 ;;we need to update the id when we rebuild the path.
 
-
 ;;given a map, maintains a computed path through the map, and provides a
 ;;reactive, dependent set of selection-boxes that reflect the possibly choices
 ;;given the constraints of the current path.
@@ -349,7 +348,7 @@
                                (throw (js/Error. (str [:invalid-choice! k :for choices]))))))]
     (fn [choices]
       (let [menu-seq    (compute-menu choices @path)
-            n           (dec (count @path))
+            n           (dec          (count @path))
             ;;db is recomputed after every selection....if we retain the selection, we
             ;;should have our values...
             db  (into {} (for [[lbl choice-seq] menu-seq]
@@ -470,22 +469,25 @@
 
 (defn sparse-samples [n]
   (when-let [bounds (sample-range)]
-    (let [{:keys [xmin xmax ymin ymax]} bounds
-          w (- xmax xmin)
-          h (- ymax ymin)]
+    (let [{:keys [xmin xmax ymin ymax measure]} bounds
+          w   (- xmax xmin)
+          h   (- ymax ymin)]
       (if (<= (* w h) n)
         (for [x (range xmin xmax)
               y (range ymin ymax)]
           (mapv (fn [r]
-                  (merge {:x x :y y} r)) (nearest-trends [x y])))
+                  (merge {:AC x :RC y :measure measure} r)) (nearest-trends [x y])))
         (random-samples n)))))
 
+;;generates a sample from the surface, trying to keep the
+;;total sample size reasonable.  If it's possible to
+;;discretely sample everything, will do.
 (defn sample-surface []
-  (when-let [bounds (sample-range)]
+  (when-let [bounds  (sample-range)]
     (let [total (enumerated bounds)]
       (apply concat (if (< total 1000)
-                      (sparse-samples total)
-                      (sparse-samples 1000))))))
+                        (sparse-samples total)
+                        (sparse-samples 1000))))))
 
 ;;allows us to select numeric ranges for the key.
 ;;f(ac rc) -> (current
@@ -521,6 +523,34 @@
                      [:label (str (m :Period) ": " (m :Response))]
                      ])) [:div {:id "blah"}]  @xs)))
 
+;;we want to render our path as a collection of surfaces.
+(defn render-surface!
+  ([xs]
+   (let [m (:measure (first xs))]
+     (let [fd (:function-data @app-state)
+           xy @fd
+           _  (heat/draw!
+               (heat/data->heatfacet! xs :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))
+          
+           _  (add-watch fd :cursor-movement (fn [a k old new]
+                                                (heat/set-cursor (:view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
+         )))
+  ([] (render-surface! (sample-surface))))
+
+
+
+;;layout helpers, makes it a tiny bit more readable...
+(defn beside [& xs]
+  [h-box :size     "auto" 
+         :gap      "10px"
+   :children (vec xs)])
+
+(defn above [ & xs]
+  [v-box
+   :size     "auto" 
+   :gap      "10px"
+   :children (vec xs)])
+
 ;;we want to have a chart rendering channel.
 ;;Basically, communicate with the chart by pushing new trends to a channel,
 ;;then have interested subscribers update based on said trend.
@@ -529,11 +559,11 @@
 
 ;;using vbox instead of divs and friends.
 (defn app-body []
-  (let [menu-items    (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
-        selection     (r/atom nil)        
-        function-data (r/atom {:AC 0 :RC 0});(->property  :function-data {:AC 0 :RC 0})
-        map-path      (r/atom []) ;(->property  :current-path  [])
-        nt            (r/atom nil)
+  (let [menu-items     (r/atom nil) ;;if we don't use a ratom, we don't get our path to update on fileload.
+        selection      (r/atom nil)        
+        function-data  (r/atom {:AC 0 :RC 0});(->property  :function-data {:AC 0 :RC 0})
+        map-path       (r/atom []) ;(->property  :current-path  [])
+        nt             (r/atom nil)
         update-trends! (fn [x y] (let [tr   (nearest-trends)
                                         _   (reset! nt tr)
                                        ]
@@ -553,34 +583,36 @@
                                   (reduced nil))) []  menu)
             _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))           
             ]
-        [v-box
-         :size     "auto" 
-         :gap      "10px"
-         :children
-         [[:h2 "This is all reactive..."]
+        [above
+          [:h2 "This is all reactive..."]
           [:p "We'll show some interaction here too, charts and sliders."]
           [tad-selector menu-items]
-          ;;on ice for now.
-          [:div {:id "Map Selector"}
-           ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
-           ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
-           ;;just pass in the atom though....
-           [(->map-selector map-path :labels tad/path-labels #_["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
-           ]
-          ;;given a path, we'll let the last segment be reactive....
-          [:div {:id "Coordinates"}
-           ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
-           ;;In this case, x : ac, y : rc, z : measure
-           [(->range-selector :function-data function-data :f update-trends!)
-            (current-supply)]]
-          [:div {:id "sample"}
-           ;;Note: we had to wrap a former call to (nearest-trends) in an atom, nt, and pass
-           ;;that as the argument for trends->txt.  Otherwise, we ended up with looping re-rendering.
-           [trends->txt nt]]
+         [beside
+          [above 
+           ;;on ice for now.
+           [:div {:id "Map Selector"}
+            ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
+            ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
+            ;;just pass in the atom though....
+            [(->map-selector map-path :labels tad/path-labels #_["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
+            ]
+           ;;given a path, we'll let the last segment be reactive....
+           [:div {:id "Coordinates"}
+            ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
+            ;;In this case, x : ac, y : rc, z : measure
+            [(->range-selector :function-data function-data :f update-trends!)
+             (current-supply)]]
+           [:div {:id "sample"}
+            ;;Note: we had to wrap a former call to (nearest-trends) in an atom, nt, and pass
+            ;;that as the argument for trends->txt.  Otherwise, we ended up with looping re-rendering.
+            [trends->txt nt]]]
+          ;;our surface is here.
+          [heat/vega-root]]
+         ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
-          [:div {:id "tad-bar"}
+          #_[:div {:id "tad-bar"}
              [high/chart-component]
              ]
           #_[:div {:id "selection"}
@@ -604,9 +636,7 @@
              [bmi/bmi-component]]
           #_[:div {:id "gyp"}           
              [gyp/root]]
-          [heat/vega-root]
-          
-          ]]))))
+          ))))
 
 ;;just an example of rendering react components to dom targets.
 (defn mount-it

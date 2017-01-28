@@ -6,304 +6,18 @@
             [reagent.core :as r]
             [vega-tools.core :as vega-tools]))
 
+(defn limit-values [n xs]
+  (let [v (vec xs)
+        k (count v)]
+    (if (<= k n) v
+        (let [step (quot k n)]
+          (map #(nth v %)
+               (range 0 k step))))))
+;;helper.
 (defn datum [p]
-  (str "datum." p))
+  (str "datum." (name p)))
 
-;;normalized linear heat gradient...
-(defn linear-heat [w h]
-  (for [x (range w)
-        y (range h)]
-    {:x x
-     :y y
-     :z (/ (+ x y) (+ w h))}))
-
-(defn linear-heat-from [xmin xmax ymin ymax n]
-  (let [dx (-  xmax xmin)
-        dy (-  ymax ymin)
-        mx (+ xmax ymax)]
-    (for [n (range n)]
-      (let [x  (+ xmin (int (* dx (rand))))
-            y  (+ ymin (int (* dy (rand))))]
-        {:x x
-         :y y
-         :z (/ (+ x y) mx)}))))
-       
-;;juuuuuust enough info to create a heatmap using vega.
-;;For more general purpose solutions, we can use 
-(def raw-heat-spec
-  {"width" 800
-   "height" 500
-   "data" [{"name" "temperature"
-            "url" "data/seattle-temps.csv"
-            "format" {"type" "csv" "parse" {"temp" "number" "date" "date"}}
-            "transform" [{"type" "formula" "field" "hour" "expr" "hours(datum.date)"}
-                         { "type" "formula" "field" "date"
-                          "expr" "datetime(year(datum.date) month(datum.date) date(datum.date))"}]}]
-   "scales" [{"name" "x"
-              "type" "time"
-              "domain" {"data" "temperature"
-                        "field" "date"}
-              "range" "width"}
-             {"name" "y"
-              "type" "ordinal"
-              "domain" {"data" "temperature"
-                        "field" "hour"}
-              "range" "height"
-              "round" false}
-             {"name" "c"
-              "type" "linear"
-              ;;n break points in the domain
-              "domain" [37.5, 47, 56.5, 75.5]
-              ;;n colors to define the gradient
-              "range" ["#a50026" "#ffcc66" "#ffffbf" "#66ff33"]
-              "zero" false}]
-   "axes" [{"type" "x" "scale" "x"}
-           {"type" "y" "scale" "y"}]
-   "legends" [{"fill" "c" "values" [37.5 56.5 75.5]}]
-   "marks" [{"type" "rect"
-             "from" {"data" "temperature"}
-             "properties" {"enter" {"x" {"scale" "x" "field" "date"}
-                                    "width" {"value" 5}
-                                    "y" {"scale" "y" "field" "hour"}
-                                    "height" {"scale" "y" "band" true}
-                                    "fill" {"scale" "c" "field" "temp"}}}}]})
-
-;; Copied from <https://github.com/vega/vega/blob/76ab79f711b80840e34484974c9b717f584e8f7c/examples/bar.json>
-(def heat-spec
-  {:width  400
-   :height 400
-   :padding {:top 10, :left 30, :bottom 30, :right 10}
-
-   :data
-   [{:name "table"
-     :values (vec (linear-heat 10 10))}]
-
-   :scales
-   [{:name "x"
-     :type "ordinal"
-     :range "width"
-     :domain {:data "table", :field "x"}}
-    {:name "y"
-     :type "linear"
-     :range "height"
-     :domain {:data "table", :field "y"},
-     :nice true
-     }
-    {:name "z"
-      :type "linear"
-     ;;n break points in the domain
-      :domain [0.0, 0.25, 0.75, 1.0]
-     ;;n colors to define the gradient
-      :range ["#a50026" "#ffcc66" "#ffffbf" "#66ff33"]
-     :zero false}]
-   
-   :axes
-   [{:type "x", :scale "x"}
-    {:type "y", :scale "y"}]
-
-   :marks
-   [{:type "rect"
-     :from {:data "table"}
-     :properties {:enter {:x {:scale "x" :field "x"}
-                          :width {:value 5}
-                          :y {:scale "y" :field "y"}
-                          :height {:scale "y" :band true}
-                          :fill {:scale "z" :field "z"}}}}]})
-
-
-(def actual-spec
-  {:width 400,
-   :height 400,
-   :padding {:top 10, :left 30, :bottom 30, :right 10},
-   :data
-   [{:name "table",
-     :values
-     [{:x 0, :y 0, :z 0}
-      {:x 0, :y 1, :z 0.05}
-      {:x 0, :y 2, :z 0.1}
-      {:x 0, :y 3, :z 0.15}
-      {:x 0, :y 4, :z 0.2}
-      {:x 0, :y 5, :z 0.25}
-      {:x 0, :y 6, :z 0.3}
-      {:x 0, :y 7, :z 0.35}
-      {:x 0, :y 8, :z 0.4}
-      {:x 0, :y 9, :z 0.45}
-      {:x 1, :y 0, :z 0.05}
-      {:x 1, :y 1, :z 0.1}
-      {:x 1, :y 2, :z 0.15}
-      {:x 1, :y 3, :z 0.2}
-      {:x 1, :y 4, :z 0.25}
-      {:x 1, :y 5, :z 0.3}
-      {:x 1, :y 6, :z 0.35}
-      {:x 1, :y 7, :z 0.4}
-      {:x 1, :y 8, :z 0.45}
-      {:x 1, :y 9, :z 0.5}
-      {:x 2, :y 0, :z 0.1}
-      {:x 2, :y 1, :z 0.15}
-      {:x 2, :y 2, :z 0.2}
-      {:x 2, :y 3, :z 0.25}
-      {:x 2, :y 4, :z 0.3}
-      {:x 2, :y 5, :z 0.35}
-      {:x 2, :y 6, :z 0.4}
-      {:x 2, :y 7, :z 0.45}
-      {:x 2, :y 8, :z 0.5}
-      {:x 2, :y 9, :z 0.55}
-      {:x 3, :y 0, :z 0.15}
-      {:x 3, :y 1, :z 0.2}
-      {:x 3, :y 2, :z 0.25}
-      {:x 3, :y 3, :z 0.3}
-      {:x 3, :y 4, :z 0.35}
-      {:x 3, :y 5, :z 0.4}
-      {:x 3, :y 6, :z 0.45}
-      {:x 3, :y 7, :z 0.5}
-      {:x 3, :y 8, :z 0.55}
-      {:x 3, :y 9, :z 0.6}
-      {:x 4, :y 0, :z 0.2}
-      {:x 4, :y 1, :z 0.25}
-      {:x 4, :y 2, :z 0.3}
-      {:x 4, :y 3, :z 0.35}
-      {:x 4, :y 4, :z 0.4}
-      {:x 4, :y 5, :z 0.45}
-      {:x 4, :y 6, :z 0.5}
-      {:x 4, :y 7, :z 0.55}
-      {:x 4, :y 8, :z 0.6}
-      {:x 4, :y 9, :z 0.65}
-      {:x 5, :y 0, :z 0.25}
-      {:x 5, :y 1, :z 0.3}
-      {:x 5, :y 2, :z 0.35}
-      {:x 5, :y 3, :z 0.4}
-      {:x 5, :y 4, :z 0.45}
-      {:x 5, :y 5, :z 0.5}
-      {:x 5, :y 6, :z 0.55}
-      {:x 5, :y 7, :z 0.6}
-      {:x 5, :y 8, :z 0.65}
-      {:x 5, :y 9, :z 0.7}
-      {:x 6, :y 0, :z 0.3}
-      {:x 6, :y 1, :z 0.35}
-      {:x 6, :y 2, :z 0.4}
-      {:x 6, :y 3, :z 0.45}
-      {:x 6, :y 4, :z 0.5}
-      {:x 6, :y 5, :z 0.55}
-      {:x 6, :y 6, :z 0.6}
-      {:x 6, :y 7, :z 0.65}
-      {:x 6, :y 8, :z 0.7}
-      {:x 6, :y 9, :z 0.75}
-      {:x 7, :y 0, :z 0.35}
-      {:x 7, :y 1, :z 0.4}
-      {:x 7, :y 2, :z 0.45}
-      {:x 7, :y 3, :z 0.5}
-      {:x 7, :y 4, :z 0.55}
-      {:x 7, :y 5, :z 0.6}
-      {:x 7, :y 6, :z 0.65}
-      {:x 7, :y 7, :z 0.7}
-      {:x 7, :y 8, :z 0.75}
-      {:x 7, :y 9, :z 0.8}
-      {:x 8, :y 0, :z 0.4}
-      {:x 8, :y 1, :z 0.45}
-      {:x 8, :y 2, :z 0.5}
-      {:x 8, :y 3, :z 0.55}
-      {:x 8, :y 4, :z 0.6}
-      {:x 8, :y 5, :z 0.65}
-      {:x 8, :y 6, :z 0.7}
-      {:x 8, :y 7, :z 0.75}
-      {:x 8, :y 8, :z 0.8}
-      {:x 8, :y 9, :z 0.85}
-      {:x 9, :y 0, :z 0.45}
-      {:x 9, :y 1, :z 0.5}
-      {:x 9, :y 2, :z 0.55}
-      {:x 9, :y 3, :z 0.6}
-      {:x 9, :y 4, :z 0.65}
-      {:x 9, :y 5, :z 0.7}
-      {:x 9, :y 6, :z 0.75}
-      {:x 9, :y 7, :z 0.8}
-      {:x 9, :y 8, :z 0.85}
-      {:x 9, :y 9, :z 0.9}]}],
-   :scales
-   [{:name "x",
-     :type "ordinal",
-     :range "width",
-     :domain {:data "table", :field "x"}}
-    {:name "y",
-     :type "ordinal",
-     :range "height",
-     :reverse true ;else we get upside down...     
-     :domain {:data "table", :field "y"},
-     ;:nice true
-     }
-    {:name "z",
-     :type "linear",
-     :domain [0 0.25 0.5 0.75 1],
-     :range ["#a50026" "#ffcc66" "#ffffbf" "#66ff33"],
-     :zero false}],
-   :axes [{:type "x", :scale "x"} {:type "y", :scale "y"}],
-   :legends [{:fill "z" :values [0.0 0.25 0.5 0.75 1.0]}]
-   :marks
-   [{:type "rect",
-     :from {:data "table"},
-     :properties
-     {:enter
-      {:x {:scale "x", :field "x"},
-       :width {:scale "x", :band true},
-       :y {:scale "y", :field "y"},
-       :height {:scale "y", :band true},
-       :fill {:scale "z", :field "z"}}}}]})
-
-;;assuming we have a fixed-width step between samples...
-;;and we want a larger displayed "tick step"
-;;we can generate the ticks we want to display
-;;we can define a function, ordinal-ticks, that
-;;will let us drop ticks.  this has to be done
-;;outside of vega, and provided via a values
-;;paramater in the spec somewhere for the axes.
-  
-(defn heat-spec! [n]
-  {:width 800,
-   :height 800,
-   :padding "strict" #_{:top 10, :left 60, :bottom 60, :right 10},
-   :data
-   [{:name "table",
-     :values
-     (vec (linear-heat n n))}],
-   :scales
-   [{:name "x",
-     :type  "ordinal",
-     :range "width",
-     :domain {:data "table", :field "x"}
-     ;:points true
-     }
-    {:name  "y",
-     :type  "ordinal",
-     :range "height",
-     :reverse true ;else we get upside down...     
-     :domain {:data "table", :field "y"},
-     ;:points true
-     ;:nice true
-     }
-    {:name "z",
-     :type "linear",
-     :domain [0 #_0.25 #_0.5 #_0.75 1],
-     :range ["#a50026" #_"#ffcc66" #_"#ffffbf" "#66ff33"],
-     :zero false}],
-   :axes [{:type "x",
-           :scale "x"
-           :title "X-axis"
-           }
-          {:type "y",
-           :scale "y"
-           :title "Y-axis"
-           }],
-   :legends [{:fill "z" :values [0.0  0.5  1.0] :orient "right"}]
-   :marks
-   [{:type "rect",
-     :from {:data "table"},
-     :properties
-     {:enter
-      {:x      {:scale "x", :field "x"},
-       :width  {:scale "x", :band true},
-       :y      {:scale "y", :field "y"},
-       :height {:scale "y", :band true},
-       :fill   {:scale "z", :field "z"}}}}]})
-
+;;derived from  <https://github.com/vega/vega/blob/76ab79f711b80840e34484974c9b717f584e8f7c/examples/bar.json>
 
 ;;works if we have a normalized set of [x y z]
 ;;coordinates.
@@ -355,17 +69,43 @@
          :fill {:scale "z", :field "z"}}}}]})
 
 
-(defn data->heatfacet! [xs xfield yfield zfield rowfield & {:keys [xtitle ytitle]
+(defn set-cursor
+  ([v fx fy x y]
+   (let [d (.data v)
+         c (aget d "cursor")
+         ]
+     (do (aset c  0 (clj->js {fx x fy y}))         
+         (.update v)))))
+
+(defn get-cursor [v]
+  (aget (.data v) "cursor"))
+
+;;Assuming the plots are independent,
+;;we could elevate them..
+;;basically, pull the plot data out as named group data?
+
+(defn data->heatfacet! [xs xfield yfield zfield rowfield & {:keys [xtitle ytitle ztitle]
                                                             :or   {xtitle "X"
                                                                    ytitle "Y"}}]
   (let [from      "table"
-        stackname "thestack"]
-    {:width  800
-     :height 800
-     :padding "strict"
+        stackname "thestack"
+        g1    (get (first xs) rowfield)
+        xs-ys (->> xs
+                   (filter #(=     (get % rowfield) g1))
+                   (map     (juxt #(get % xfield) #(get % yfield))))
+        xvals (limit-values 10 (distinct (map first xs-ys)))
+        yvals (limit-values 10 (distinct (map second xs-ys)))
+        cursor [{xfield  (nth xvals 4)
+                 yfield  (nth yvals 4)}]                
+         ]
+    {:width  500
+     :height 500
+     :padding "auto" ;"strict"
      :data
      [{:name   from
-       :values xs}]
+       :values xs}
+      {:name  :cursor
+       :values cursor}]
      :scales
      [{:name "x"
        :type  "ordinal"
@@ -381,7 +121,7 @@
       {:name "group",
        :type "ordinal",
        :range "height",
-       :padding 0.15,
+       :padding 0.1,
        :domain
        {:data from,
         :field rowfield,
@@ -396,10 +136,11 @@
          {:enter
           {:x      {:value 0.5}, ;;all charts are stacked on the same x-coordinate, {:scale "group", :field "key"} makes them diagonal
            :y      {:scale "group", :field "key"}, ;;gives us ordinal coords by group-key [0..n]
-           :height {:scale "group", :band true}, 
+           :height {:scale "group", :band true :offset -20},  ;;use height offset to spread out the groups.
            :width  {:field {:group "width"}},
            :stroke {:value "#ccc"}}}
-        :legends [{:fill "z" :values [0.0  0.5  1.0] :orient "right"}]
+       :legends  [{:fill "z" :values [0.0  0.5  1.0] :orient "right"
+                   :title (or ztitle zfield)}]
         :scales
        [{:name "y",
          :type "ordinal",
@@ -414,10 +155,12 @@
        :axes [{:type  "x",
                :scale "x"
                :title xtitle
+               :values xvals
                }
               {:type  "y",
                :scale "y"
                :title ytitle
+               :values yvals
                }]       
        :marks [{:type "rect",
                 :properties
@@ -427,18 +170,27 @@
                   :y {:scale "y", :field yfield},
                   :height {:scale "y", :band true},
                   :fill   {:scale "z", :field zfield}}}}
-               #_{:type "text",
-                ;:from {:mark stackname},
+               
+               {:type "rect",
+                :from {:data :cursor} 
                 :properties
-                ;;place a mark at 1/2 the sub-group's width...
                 {:enter
-                 {:x {:field {:group "width"}, :mult 0.5},
-                  :y {:field yfield, :offset 0}, ;;2 pts above the plot
-                  :fontWeight {:value "bold"},
-                  :text {:field rowfield #_(datum rowfield)},
-                  :align {:value "center"},
-                  :baseline {:value "bottom"},
-                  :fill {:value "#000"}}}}]
+                 {:x {:scale "x", :field xfield},
+                  :width {:scale "x",  :band true},
+                  :y {:scale "y", :field yfield},
+                  :height {:scale "y", :band true},
+                  :stroke {:value "black"}}
+                 :update
+                 {:x {:scale "x", :field xfield}                 
+                  :y {:scale "y", :field yfield}
+                  :fillOpacity {:value 0}}
+                 :hover
+                 {:cursor {:value :pointer}
+                  :fill   {:value "black"}
+                  :fillOpacity {:value 1.0}}
+                  
+                 
+                   }}]
        }
       ;;labels
       {:type "text",
@@ -446,10 +198,11 @@
        :properties
        ;;place a mark at 1/2 the sub-group's width...
        {:enter
-        {:x {:field {:group "width"}, :mult 0.5},
-         :y {:field yfield, :offset 0}, ;;2 pts above the plot
+        {:x {:field {:group "width"}, :mult 0.9},
+         :y {:field "y", :offset 2}, ;;2 pts above the plot  ;;note had to use "y" literal here.
          :fontWeight {:value "bold"},
-         :text {:value "HELLO!"} #_{:field (datum rowfield)},
+         :fontSize {:value 14}
+         :text  {:field (datum rowfield)},
          :align {:value "center"},
          :baseline {:value "bottom"},
          :fill {:value "#000"}}}}
@@ -961,20 +714,31 @@
 
 (defonce app-state (r/atom {:input (with-out-str (pprint/pprint initial-spec))}))
 
-(defn vega-chart [{:keys [chart]}]
+(defn vega-chart [{:keys [chart cursor]}]
   (r/create-class
    {:display-name "vega-chart"
     :reagent-render (fn [] [:div])
     :component-did-mount
     (fn [this]
-      (.update (chart {:el (r/dom-node this)})))}))
+      (let [view (chart {:el (r/dom-node this)})
+            _    (swap! app-state assoc :view view)]
+        (.update view)))
+    #_:component-did-update
+    #_(fn [this]
+     (when-let [view (get @app-state :view)]
+       (.update view)))
+    #_:component-will-update
+    #_(fn [this]
+      (let [view (chart {:el (r/dom-node this)})
+            _    (swap! app-state assoc :view view)]
+        (.update view)))}))
 
 (defn parse-input []
   (let [{:keys [input]} @app-state]
     (swap! app-state assoc :chart nil :error nil)
     (-> (reader/read-string input)
         (vega-tools/validate-and-parse)
-        (p/catch #(swap! app-state assoc :error %))
+        (p/catch #(swap! app-state assoc :error % :view nil))
         (p/then #(swap! app-state assoc :chart %)))))
 
 (defn draw! [s]
@@ -988,22 +752,24 @@
   (let [_ (js/console.log "Starting the vega-root")
         _ (parse-input)]
     (fn [] 
-      (let [{:keys [input error chart]} @app-state]
+      (let [{:keys [input error chart cursor]} @app-state]
         [:div
-         [:h1 "vega-tools example"]
-         [:div.container-fluid
-          [:div.editor.col-md-6
-           [:button {:on-click #(parse-input)} "Parse"] [:br]
-           [:textarea.spec-input
-            {:default-value input
-             :on-change #(swap! app-state assoc :input (-> % .-target .-value))}]]]
-          [:div
+         ;; [:h1 "vega-tools example"]
+         ;; [:div.container-fluid
+         ;;  [:div.editor.col-md-6
+         ;;   [:button {:on-click #(parse-input)} "Parse"] [:br]
+         ;;   [:textarea.spec-input
+         ;;    {:default-value input
+         ;;     :on-change #(swap! app-state assoc :input (-> % .-target .-value))}]]]
+          ;[:div
            (cond
              error [:div
                     [:h2 "Validation error"]
                     [:pre (with-out-str (pprint/pprint error))]]
-             chart [vega-chart {:chart chart}]
-             :else "Processing...")]]))))
+             chart [vega-chart {:chart chart :cursor cursor}]
+             :else "Processing...")]
+                                        ;]
+      ))))
 
 
 ;;we can get an equivalent table of data...
@@ -1020,114 +786,6 @@
                     {"x" 17, "y" 68}, {"x" 18, "y" 16},
                     {"x" 19, "y" 49}, {"x" 20, "y" 15}
                    ]})
-
-
-;; (def fake-temp-data
-;;   [{"x": 0, "y": 0, "temp": 0},
-;;    {"x": 0, "y": 1, "temp": 1},
-;;    {"x": 0, "y": 2, "temp": 2},
-;;    {"x": 0, "y": 3, "temp": 3},
-;;    {"x": 0, "y": 4, "temp": 4},
-;;    {"x": 0, "y": 5, "temp": 5},
-;;    {"x": 0, "y": 6, "temp": 6},
-;;    {"x": 0, "y": 7, "temp": 7},
-;;    {"x": 0, "y": 8, "temp": 8},
-;;    {"x": 0, "y": 9, "temp": 9},
-;;    {"x": 1, "y": 0, "temp": 1},
-;;    {"x": 1, "y": 1, "temp": 2},
-;;    {"x": 1, "y": 2, "temp": 3},
-;;    {"x": 1, "y": 3, "temp": 4},
-;;    {"x": 1, "y": 4, "temp": 5},
-;;    {"x": 1, "y": 5, "temp": 6},
-;;    {"x": 1, "y": 6, "temp": 7},
-;;    {"x": 1, "y": 7, "temp": 8},
-;;    {"x": 1, "y": 8, "temp": 9},
-;;    {"x": 1, "y": 9, "temp": 10},
-;;    {"x": 2, "y": 0, "temp": 2},
-;;    {"x": 2, "y": 1, "temp": 3},
-;;    {"x": 2, "y": 2, "temp": 4},
-;;    {"x": 2, "y": 3, "temp": 5},
-;;    {"x": 2, "y": 4, "temp": 6},
-;;    {"x": 2, "y": 5, "temp": 7},
-;;    {"x": 2, "y": 6, "temp": 8},
-;;    {"x": 2, "y": 7, "temp": 9},
-;;    {"x": 2, "y": 8, "temp": 10},
-;;    {"x": 2, "y": 9, "temp": 11},
-;;    {"x": 3, "y": 0, "temp": 3},
-;;    {"x": 3, "y": 1, "temp": 4},
-;;    {"x": 3, "y": 2, "temp": 5},
-;;    {"x": 3, "y": 3, "temp": 6},
-;;    {"x": 3, "y": 4, "temp": 7},
-;;    {"x": 3, "y": 5, "temp": 8},
-;;    {"x": 3, "y": 6, "temp": 9},
-;;    {"x": 3, "y": 7, "temp": 10},
-;;    {"x": 3, "y": 8, "temp": 11},
-;;    {"x": 3, "y": 9, "temp": 12},
-;;    {"x": 4, "y": 0, "temp": 4},
-;;    {"x": 4, "y": 1, "temp": 5},
-;;    {"x": 4, "y": 2, "temp": 6},
-;;    {"x": 4, "y": 3, "temp": 7},
-;;    {"x": 4, "y": 4, "temp": 8},
-;;    {"x": 4, "y": 5, "temp": 9},
-;;    {"x": 4, "y": 6, "temp": 10},
-;;    {"x": 4, "y": 7, "temp": 11},
-;;    {"x": 4, "y": 8, "temp": 12},
-;;    {"x": 4, "y": 9, "temp": 13},
-;;    {"x": 5, "y": 0, "temp": 5},
-;;    {"x": 5, "y": 1, "temp": 6},
-;;    {"x": 5, "y": 2, "temp": 7},
-;;    {"x": 5, "y": 3, "temp": 8},
-;;    {"x": 5, "y": 4, "temp": 9},
-;;    {"x": 5, "y": 5, "temp": 10},
-;;    {"x": 5, "y": 6, "temp": 11},
-;;    {"x": 5, "y": 7, "temp": 12},
-;;    {"x": 5, "y": 8, "temp": 13},
-;;    {"x": 5, "y": 9, "temp": 14},
-;;    {"x": 6, "y": 0, "temp": 6},
-;;    {"x": 6, "y": 1, "temp": 7},
-;;    {"x": 6, "y": 2, "temp": 8},
-;;    {"x": 6, "y": 3, "temp": 9},
-;;    {"x": 6, "y": 4, "temp": 10},
-;;    {"x": 6, "y": 5, "temp": 11},
-;;    {"x": 6, "y": 6, "temp": 12},
-;;    {"x": 6, "y": 7, "temp": 13},
-;;    {"x": 6, "y": 8, "temp": 14},
-;;    {"x": 6, "y": 9, "temp": 15},
-;;    {"x": 7, "y": 0, "temp": 7},
-;;    {"x": 7, "y": 1, "temp": 8},
-;;    {"x": 7, "y": 2, "temp": 9},
-;;    {"x": 7, "y": 3, "temp": 10},
-;;    {"x": 7, "y": 4, "temp": 11},
-;;    {"x": 7, "y": 5, "temp": 12},
-;;    {"x": 7, "y": 6, "temp": 13},
-;;    {"x": 7, "y": 7, "temp": 14},
-;;    {"x": 7, "y": 8, "temp": 15},
-;;    {"x": 7, "y": 9, "temp": 16},
-;;    {"x": 8, "y": 0, "temp": 8},
-;;    {"x": 8, "y": 1, "temp": 9},
-;;    {"x": 8, "y": 2, "temp": 10},
-;;    {"x": 8, "y": 3, "temp": 11},
-;;    {"x": 8, "y": 4, "temp": 12},
-;;    {"x": 8, "y": 5, "temp": 13},
-;;    {"x": 8, "y": 6, "temp": 14},
-;;    {"x": 8, "y": 7, "temp": 15},
-;;    {"x": 8, "y": 8, "temp": 16},
-;;    {"x": 8, "y": 9, "temp": 17},
-;;    {"x": 9, "y": 0, "temp": 9},
-;;    {"x": 9, "y": 1, "temp": 10},
-;;    {"x": 9, "y": 2, "temp": 11},
-;;    {"x": 9, "y": 3, "temp": 12},
-;;    {"x": 9, "y": 4, "temp": 13},
-;;    {"x": 9, "y": 5, "temp": 14},
-;;    {"x": 9, "y": 6, "temp": 15},
-;;    {"x": 9, "y": 7, "temp": 16},
-;;    {"x": 9, "y": 8, "temp": 17},
-;;    {"x": 9, "y": 9, "temp": 18}]
-;;   )
-
-
-
-(def js-spec (clj->js heat-spec))
 
 (comment 
 (def chrt (atom nil))
