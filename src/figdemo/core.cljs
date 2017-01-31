@@ -531,10 +531,10 @@
    (let [m (:measure (first xs))]
      (let [fd (:function-data @app-state)
            xy @fd
-           _  (heat/draw!
+           _  (heat/draw! :surface-chart
                (heat/data->heatfacet! xs :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))          
            _  (add-watch fd :cursor-movement (fn [a k old new]
-                                                (heat/set-cursor (:view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
+                                                (heat/set-cursor (:surface-chart-view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
          )))
   ([] (render-surface! (sample-surface))))
 
@@ -544,6 +544,7 @@
 (defn group-paths []
   (let [p              (current-path)
         [src demand policy measure acrc] p
+        acrc (or (current-data) acrc)
         db (:db @app-state)]
     (for [[dem xs] (get db src)
           [pol ys] xs
@@ -560,21 +561,33 @@
 ;;grouped bar chart that looks good.
 (defn render-groups!
   ([xs]
-   (let [m (:measure (first xs))
-         fd (:function-data @app-state)
-         xy @fd
-         grps (heat/grouped-bars xs  {
-                              :valfield   :Response
-                              :trendfield :policy
-                              :catfield   :Period
-                              :xtitle (:measure (first xs))
-                              :ytitle "Period"})
-         
+   (let [m  (:measure (first xs))
+         fd (:function-data @app-state)         
+         xy @fd         
+         grps (-> (->> xs
+                       (mapv (fn [r] (assoc r :trend (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r))))))
+                  (heat/grouped-bars {:valfield   :Response
+                                      :trendfield :trend
+                                      :catfield   :Period
+                                      :xtitle (:measure (first xs))
+                                      :ytitle "Period"}))         
            ;;when we move our acrc supply cursor, we get different bars.
-          ; _  (add-watch fd :cursor-movement (fn [a k old new]
-          ;                                      (heat/set-cursor (:view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
+        _ (add-watch fd :group-movement
+                    (fn [a k old new]
+                      (let [grps (->> (group-data)
+                                      (mapv (fn [r] (assoc r :trend (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r)))))
+                                      (clj->js))
+                            bc   (:bar-chart-view @heat/app-state)
+                            
+                            data (. bc data "table")
+                            _    (.remove data (fn [_] true))
+                            _    (.insert data grps)
+                            ]
+                        #_(heat/draw! :bar-chart grps)
+                        (.update bc))
+                        ))                        
          ]
-     (heat/draw! grps)))
+     (heat/draw! :bar-chart grps)))
   ([] (render-groups! (group-data))))
 
 ;;layout helpers, makes it a tiny bit more readable...

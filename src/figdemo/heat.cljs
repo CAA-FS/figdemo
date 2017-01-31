@@ -712,26 +712,29 @@
                   :update {:fill {:value "steelblue"}}
                   :hover {:fill {:value "red"}}}}]})
 
-(defonce app-state (r/atom {:input (with-out-str (pprint/pprint initial-spec))}))
+;;we need to add multiple charts here.
+(defonce app-state (r/atom {:input (with-out-str (pprint/pprint initial-spec))
+                            #_:charts #_{}}))
 
-(defn vega-chart [{:keys [chart cursor]}]
-  (r/create-class
-   {:display-name "vega-chart"
-    :reagent-render (fn [] [:div])
-    :component-did-mount
-    (fn [this]
-      (let [view (chart {:el (r/dom-node this)})
-            _    (swap! app-state assoc :view view)]
-        (.update view)))
-    #_:component-did-update
-    #_(fn [this]
-     (when-let [view (get @app-state :view)]
-       (.update view)))
-    #_:component-will-update
-    #_(fn [this]
-      (let [view (chart {:el (r/dom-node this)})
-            _    (swap! app-state assoc :view view)]
-        (.update view)))}))
+(defn vega-chart [{:keys [name chart cursor]}]
+  (let [vw (keyword (str name "-view"))]
+    (r/create-class
+     {:display-name (str name)
+      :reagent-render (fn [] [:div])
+      :component-did-mount
+      (fn [this]
+        (let [view (chart {:el (r/dom-node this)})
+              _    (swap! app-state assoc vw view)]
+          (.update view)))
+      #_:component-did-update
+      #_(fn [this]
+          (when-let [view (get @app-state vw)]
+            (.update view)))
+      #_:component-will-update
+      #_(fn [this]
+          (let [view (chart {:el (r/dom-node this)})
+                _    (swap! app-state assoc :view view)]
+            (.update view)))})))
 
 (defn parse-input []
   (let [{:keys [input]} @app-state]
@@ -741,14 +744,18 @@
         (p/catch #(swap! app-state assoc :error % :view nil))
         (p/then #(swap! app-state assoc :chart %)))))
 
-(defn draw! [s]
-  (swap! app-state assoc :chart nil :error nil)
-  (-> s
-      (vega-tools/validate-and-parse)
-      (p/catch #(swap! app-state assoc :error %))
-      (p/then #(swap! app-state assoc :chart %))))
+(defn draw!
+  ([k s] 
+   (swap! app-state assoc k nil :error nil)
+   (-> s
+       (vega-tools/validate-and-parse)
+       (p/catch #(swap! app-state assoc :error %))
+       (p/then #(swap! app-state assoc k %))))
+  ([s] (draw! :chart s)))
 
-(defn vega-root []
+;;we can predicate this to look for a specific chart.
+
+#_(defn vega-root []
   (let [_ (js/console.log "Starting the vega-root")
         _ (parse-input)]
     (fn [] 
@@ -771,6 +778,40 @@
                                         ;]
       ))))
 
+;;instead of :chart, looks for :bars in our app-state.
+(defn bars-root    []
+   (let [_ (js/console.log "Starting the bars-root")]
+    (fn [] 
+      (let [{:keys [error bar-chart cursor]} @app-state]
+        [:div
+         (cond
+           error [:div
+                  [:h2 "Bars Validation error"]
+                  [:pre (with-out-str (pprint/pprint error))]]
+           bar-chart [vega-chart {:name "bar-chart" :chart bar-chart :cursor cursor}]
+           :else "Processing...Bars")]))))
+
+;;instead of :chart, looks for :surface in our app-state.
+(defn surface-root []
+  (let [_ (js/console.log "Starting the surface-root")]
+    (fn [] 
+      (let [{:keys [error surface-chart cursor]} @app-state]
+        [:div
+         (cond
+           error [:div
+                  [:h2 "Surface Validation error"]
+                  [:pre (with-out-str (pprint/pprint error))]]
+           surface-chart [vega-chart {:name "surface-chart" :chart surface-chart :cursor cursor}]
+           :else "Processing...Bars")]))))
+
+;;where all of our charts live.
+(defn vega-root []
+  (let [_ (js/console.log "Starting the vega-root")]
+    (fn [] 
+      [:div
+       [bars-root]
+       [surface-root]]       
+      )))
 
 ;;we can get an equivalent table of data...
 ;;vega tables look like this...
@@ -927,7 +968,12 @@
                                  :height {:scale "pos", :band true},
                                  :x      {:scale "val", :field valfield},
                                  :x2     {:scale "val", :value 0},
-                                 :fill   {:scale "color", :field trendfield}}}},
+                                 :fill   {:scale "color", :field trendfield}}
+                        :update  {:y      {:scale "pos", :field trendfield},
+                                  :height {:scale "pos", :band true},
+                                  :x      {:scale "val", :field valfield},
+                                  :x2     {:scale "val", :value 0},
+                                   }}},
                       {:type  "text",
                        :from {:mark "bars"},
                        :properties  {:enter  {:x {:field  "x2", :offset -5},
@@ -936,7 +982,10 @@
                                               :fill {:value  "white"},
                                               :align {:value  "right"},
                                               :baseline {:value  "middle"},
-                                              :text {:field (datum valfield)}}}}]
+                                              :text {:field (datum valfield)}}
+                                     :update  {:x {:field  "x2", :offset -5},
+                                               :y {:field  "y"},
+                                               :text {:field (datum valfield)}}}}]
               }
              ]}))
 
@@ -964,9 +1013,10 @@
    {:Period "PostSurge", :Response 0.087409272, :SRC "770200R00", :demand "SS+Surge", :policy "MaxUtilization", :measure "Fill"}])
 
 (defn acrc-bars! [xs]
-  (grouped-bars xs  {
-                     :valfield   :Response
-                     :trendfield :policy
-                     :catfield   :Period
-                     :xtitle (:measure (first xs))
-                     :ytitle "Period"}))
+  (-> (->> xs
+           (mapv (fn [r] (assoc r :trend (str (:SRC r) "-" (:demand r))))))      
+      (grouped-bars  {:valfield   :Response
+                      :trendfield :trend #_:policy
+                      :catfield   :Period
+                      :xtitle (:measure (first xs))
+                      :ytitle "Period"})))
