@@ -98,7 +98,7 @@
         cursor [{xfield  (nth xvals 4)
                  yfield  (nth yvals 4)}]                
          ]
-    {:width  500
+    {:width  200
      :height 500
      :padding "auto" ;"strict"
      :data
@@ -602,7 +602,7 @@
     {:name "c",
      :type "ordinal",
      :domain {:data "iris", :field "species"},
-     :range "category10"}],
+     :range "category20b" #_"category10"}],
    :legends
    [{:fill "c",
      :title "Species",
@@ -919,75 +919,143 @@
 
 (defn grouped-bars [xs {:keys [valfield trendfield catfield
                             xtitle ytitle ]
-                     :or {
-                          valfield "value"
-                          catfield "category"
+                     :or {valfield   "value"
+                          catfield   "category"
                           trendfield "position"
-                          xtitle valfield
-                          ytitle "Categories"}}]
-  (let [from       "table"
-               ]
-    {:width 300,
-     :height 300,
-     :data [{:name from,
+                          xtitle     valfield
+                          ytitle     "Categories"}}]
+  (let [from "table"]
+    {:width 300
+     :height 300
+     :data [{:name from
              :values xs}]
-     :scales [{:name  "cat",
-               :type  "ordinal",
-               :domain  {:data from, :field catfield},
-               :range  "height",
-               :padding 0.2
-               },
-              {:name  "val",
-               :type  "linear",
-               :domain  {:data from, :field valfield},
-               :range  "width",
-               :round true,
-               :nice true
-               },
-              {:name  "color",
-               :type  "ordinal",
-               :domain  {:data from, :field trendfield},
+     :scales [{:name  "cat"
+               :type  "ordinal"
+               :domain  {:data from :field catfield}
+               :range  "height"
+               :padding 0.2}
+              {:name  "val"
+               :type  "linear"
+               :domain  {:data from :field valfield}
+               :domainMax 1.0
+               :range  "width"
+               :round true
+               :nice true}
+              {:name  "color"
+               :type  "ordinal"
+               :domain  {:data from :field trendfield}
                :range  "category10"}]
-     :axes [{:type  "y", :scale "cat", :tickSize 0, :tickPadding 8 :title ytitle},
-            {:type  "x", :scale "val" :title xtitle}],
-     :legends [{:fill "color", :title trendfield}],
-     :marks [{:type  "group",
-              :from {:data from,
-                     :transform [{:type "facet", :groupby [catfield]}]},
-              :properties  {:enter  {:y {:scale "cat", :field "key"},
-                                     :height {:scale "cat", :band true}}},
-              :scales [{:name  "pos",
-                        :type  "ordinal",
-                        :range  "height",
+     :axes [{:type  "y" :scale "cat" :tickSize 0 :tickPadding 8 :title ytitle}
+            {:type  "x" :scale "val" :title xtitle}]
+     :legends [{:fill "color" :title trendfield}]
+     :marks [{:type  "group"
+              :from {:data from
+                     :transform [{:type "facet" :groupby [catfield]}]}
+              :properties  {:enter  {:y {:scale "cat" :field "key"}
+                                     :height {:scale "cat" :band true}}}
+              :scales [{:name  "pos"
+                        :type  "ordinal"
+                        :range  "height"
                         :domain  {:field trendfield}
-                        }],
-              :marks [{:name  "bars",
-                       :type  "rect",
+                        }]
+              :marks [{:name  "bars"
+                       :type  "rect"
                        :properties
-                       {:enter  {:y      {:scale "pos", :field trendfield},
-                                 :height {:scale "pos", :band true},
-                                 :x      {:scale "val", :field valfield},
-                                 :x2     {:scale "val", :value 0},
-                                 :fill   {:scale "color", :field trendfield}}
-                        :update  {:y      {:scale "pos", :field trendfield},
-                                  :height {:scale "pos", :band true},
-                                  :x      {:scale "val", :field valfield},
-                                  :x2     {:scale "val", :value 0},
-                                   }}},
-                      {:type  "text",
-                       :from {:mark "bars"},
-                       :properties  {:enter  {:x {:field  "x2", :offset -5},
-                                              :y {:field  "y"},
-                                              :dy {:field  "height", :mult 0.5},
-                                              :fill {:value  "white"},
-                                              :align {:value  "right"},
-                                              :baseline {:value  "middle"},
+                       {:enter  {:y      {:scale "pos" :field trendfield}
+                                 :height {:scale "pos" :band true}
+                                 :x      {:scale "val" :field valfield}
+                                 :x2     {:scale "val" :value 0}
+                                 :fill   {:scale "color" :field trendfield}}
+                        :update  {:y     {:scale "pos" :field trendfield}
+                                ;  :height {:scale "pos" :band true}
+                                  :x     {:scale "val" :field valfield}
+                                  :x2    {:scale "val" :value 0}
+                                  }}}
+                      {:type  "text"
+                       :from {:mark "bars"}
+                       :properties  {:enter  {:x {:field  "x2" :offset -5}
+                                              :y {:field  "y"}
+                                              :dy {:field  "height" :mult 0.5}
+                                              :fill {:value  "white"}
+                                              :align {:value  "right"}
+                                              :baseline {:value  "middle"}
                                               :text {:field (datum valfield)}}
-                                     :update  {:x {:field  "x2", :offset -5},
-                                               :y {:field  "y"},
+                                     :update  {:x {:field  "x2" :offset -5}
+                                               :y {:field  "y"}
                                                :text {:field (datum valfield)}}}}]
               }
              ]}))
+
+
+(defn grouped-barsv [xs {:keys [valfield trendfield catfield
+                            xtitle ytitle ]
+                     :or {valfield   "value"
+                          catfield   "category"
+                          trendfield "position"
+                          xtitle     valfield
+                          ytitle     "Categories"}}]
+  (let [from "table"]
+    {:width 300
+     :height 300
+     :data [{:name from
+             :values xs}]
+     :scales [{:name  "cat"
+               :type  "ordinal"
+               :domain  {:data from :field catfield}
+               :range  "width"
+               :padding 0.2}
+              {:name  "val"
+               :type  "linear"
+               :domain  {:data from :field valfield}
+               :domainMax 1.0
+               :range  "height"
+               :round true
+               :nice true}
+              {:name  "color"
+               :type  "ordinal"
+               :domain  {:data from :field trendfield}
+               :range  "category10"}]
+     :axes [{:type "x"  :scale "cat"  :tickSize 0  :tickPadding 8 :title xtitle}
+            {:type "y"  :scale "val"  :title ytitle}]
+     :legends [{:fill "color" :title trendfield}]
+     :marks [{:type  "group"
+              :from {:data from
+                     :transform [{:type "facet" :groupby [catfield]}]}
+              :properties  {:enter  {:x {:scale "cat" :field "key"}
+                                     :height {:scale "cat" :band true}}}
+              :scales [{:name  "pos"
+                        :type  "ordinal"
+                        :range  "width"
+                        :domain  {:field trendfield}
+                        }]
+              :marks [{:name  "bars"
+                       :type  "rect"
+                       :properties
+                       {:enter  {:x      {:scale "pos" :field trendfield}
+                                 :width {:scale "pos" :band true}
+                                 :y      {:scale "val" :field valfield}
+                                 :y2     {:scale "val" :value 0}
+                                 :fill   {:scale "color" :field trendfield}}
+                        :update  {:x     {:scale "pos" :field trendfield}
+                                ;  :height {:scale "pos" :band true}
+                                  :y     {:scale "val" :field valfield}
+                                  :y2    {:scale "val" :value 0}
+                                  }}}
+                      {:type  "text"
+                       :from {:mark "bars"}
+                       :properties  {:enter  {:y {:field  "y2" :offset -5}
+                                              :x {:field  "x"}
+                                              :dx {:field  "width" :mult 0.5}
+                                              :fill {:value  "white"}
+                                              :align {:value  "right"}
+                                              :baseline {:value  "middle"}
+                                              :text {:field (datum valfield)}}
+                                     :update  {:y {:field  "y2" :offset -5}
+                                               :x {:field  "x"}
+                                               :text {:field (datum valfield)}}}}]
+              }
+             ]}))
+
 
 
 (def testd
@@ -997,6 +1065,9 @@
    {:Period "PreSurge", :Response 0.431484142, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
    {:Period "Surge", :Response 0.723484714, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
    {:Period "PostSurge", :Response 0.717026122, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}])
+
+;; (defn add-trend [xs]
+;;   (mapv (fn [x] 
 
 (def testd2
   [{:Period "PreSurge", :Response 0.542988619, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}

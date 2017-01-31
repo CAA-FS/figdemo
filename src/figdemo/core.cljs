@@ -151,7 +151,7 @@
 
 (defn tad-selector [menu-items]  
    [:div {:id "tad-selector"}
-       "A form"
+       "Select and Load a Valid TADMUDI Dataset"
        [:form 
         "TADMUDI-file:"   [:input {:type "file"
                                    :name "tad-file-r"
@@ -199,8 +199,8 @@
                                 :model       selected-choice-id 
                                 :title?      true 
                                 :placeholder "Choose a Value" 
-                                :width       "300px" 
-                                :max-height  "400px" 
+                                :width       "100px" 
+                                :max-height  "200px" 
                                 :filter-box? false 
                                 :on-change   #(reset! selected-choice-id %)]
                                [:div 
@@ -563,9 +563,16 @@
   ([xs]
    (let [m  (:measure (first xs))
          fd (:function-data @app-state)         
-         xy @fd         
-         grps (-> (->> xs
-                       (mapv (fn [r] (assoc r :trend (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r))))))
+         xy @fd
+         groups->datums (fn [xs]
+                          (->> xs
+                               (mapv (fn [r] (assoc r :trend
+                                                    (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r))
+                                                    :Response (util/as-decimal (:Response r) 2)
+                                                    )))))
+                       
+         grps (-> xs
+                  (groups->datums)
                   (heat/grouped-bars {:valfield   :Response
                                       :trendfield :trend
                                       :catfield   :Period
@@ -575,7 +582,7 @@
         _ (add-watch fd :group-movement
                     (fn [a k old new]
                       (let [grps (->> (group-data)
-                                      (mapv (fn [r] (assoc r :trend (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r)))))
+                                      (groups->datums)
                                       (clj->js))
                             bc   (:bar-chart-view @heat/app-state)
                             
@@ -589,6 +596,14 @@
          ]
      (heat/draw! :bar-chart grps)))
   ([] (render-groups! (group-data))))
+
+(defn draw-charts! []
+  (do (render-groups!)
+      (render-surface!)))
+
+(defn clear-charts! []
+  (do (heat/draw! :bar-chart #js{})
+      (heat/draw! :surface-chart #js{})))
 
 ;;layout helpers, makes it a tiny bit more readable...
 (defn beside [& xs]
@@ -635,8 +650,8 @@
             _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))           
             ]
         [above
-          [:h2 "This is all reactive..."]
-          [:p "We'll show some interaction here too, charts and sliders."]
+          [:h2 "Welcome to the TADMUDI Data Exploration Extravaganza"]
+          [:p "Once you select a database, interactive widgets will pop up, as well as charts!"]
           [tad-selector menu-items]
          [beside
           [above 

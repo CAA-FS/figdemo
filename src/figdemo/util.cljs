@@ -1,6 +1,7 @@
 (ns figdemo.util
     (:require-macros [cljs.core.async.macros :refer [go]])
     (:require [cljs.core.async :as async]
+              [clojure.reader :as reader]
               [goog.dom :as dom]
               [goog.events :as events]
               ;;note, you have to require google classes...
@@ -14,6 +15,11 @@
 
 ;;Utils
 ;;=====
+
+;;round to two decimal places.
+(defn as-decimal [n digits]
+  (let [res (.toFixed n digits)]
+    (reader/read-string res)))
 
 ;;Helper to detect IE11
 ;;Had to do this since IE11 handles html5 ranges
