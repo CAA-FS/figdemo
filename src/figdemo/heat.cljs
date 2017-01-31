@@ -804,3 +804,169 @@
      {:reagent-render chart-render
       :component-did-mount c})))
 )
+
+
+
+(def bar-data
+    [{:category "A", :position 0, :value 0.1},
+     {:category "A", :position 1, :value 0.6},
+     {:category "A", :position 2, :value 0.9},
+     {:category "A", :position 3, :value 0.4},
+     {:category "B", :position 0, :value 0.7},
+     {:category "B", :position 1, :value 0.2},
+     {:category "B", :position 2, :value 1.1},
+     {:category "B", :position 3, :value 0.8},
+     {:category "C", :position 0, :value 0.6},
+     {:category "C", :position 1, :value 0.1},
+     {:category "C", :position 2, :value 0.2},
+     {:category "C", :position 3, :value 0.7}])
+
+(def bar-spec 
+  {:width 300,
+   :height 240,
+   :data [{:name "table",
+           :values bar-data}]
+   :scales [{:name  "cat",
+             :type  "ordinal",
+             :domain  {:data "table", :field "category"},
+             :range  "height",
+             :padding 0.2
+             },
+            {:name  "val",
+             :type  "linear",
+             :domain  {:data "table", :field "value"},
+             :range  "width",
+             :round true,
+             :nice true
+             },
+            {:name  "color",
+             :type  "ordinal",
+             :domain  {:data "table", :field "position"},
+             :range  "category10"}]
+  :axes [{:type  "y", :scale "cat", :tickSize 0, :tickPadding 8},
+         {:type  "x", :scale "val"}],
+  :marks [{:type  "group",
+           :from {:data "table",
+                  :transform [{:type "facet", :groupby ["category"]}]},
+           :properties  {:enter  {:y {:scale "cat", :field "key"},
+                                  :height {:scale "cat", :band true}}},
+           :scales [{:name  "pos",
+                     :type  "ordinal",
+                     :range  "height",
+                     :domain  {:field "position"}
+                     }],
+           :marks [{:name  "bars",
+                    :type  "rect",
+                    :properties
+                    {:enter  {:y      {:scale "pos", :field "position"},
+                              :height {:scale "pos", :band true},
+                              :x      {:scale "val", :field "value"},
+                              :x2     {:scale "val", :value 0},
+                              :fill   {:scale "color", :field "position"}}}},
+                   {:type  "text",
+                    :from {:mark "bars"},
+                    :properties  {:enter  {:x {:field  "x2", :offset -5},
+                                           :y {:field  "y"},
+                                           :dy {:field  "height", :mult 0.5},
+                                           :fill {:value  "white"},
+                                           :align {:value  "right"},
+                                           :baseline {:value  "middle"},
+                                           :text {:field "datum.value"}}}}]
+           }
+          ]})
+
+
+(defn grouped-bars [xs {:keys [valfield trendfield catfield
+                            xtitle ytitle ]
+                     :or {
+                          valfield "value"
+                          catfield "category"
+                          trendfield "position"
+                          xtitle valfield
+                          ytitle "Categories"}}]
+  (let [from       "table"
+               ]
+    {:width 300,
+     :height 300,
+     :data [{:name from,
+             :values xs}]
+     :scales [{:name  "cat",
+               :type  "ordinal",
+               :domain  {:data from, :field catfield},
+               :range  "height",
+               :padding 0.2
+               },
+              {:name  "val",
+               :type  "linear",
+               :domain  {:data from, :field valfield},
+               :range  "width",
+               :round true,
+               :nice true
+               },
+              {:name  "color",
+               :type  "ordinal",
+               :domain  {:data from, :field trendfield},
+               :range  "category10"}]
+     :axes [{:type  "y", :scale "cat", :tickSize 0, :tickPadding 8 :title ytitle},
+            {:type  "x", :scale "val" :title xtitle}],
+     :legends [{:fill "color", :title trendfield}],
+     :marks [{:type  "group",
+              :from {:data from,
+                     :transform [{:type "facet", :groupby [catfield]}]},
+              :properties  {:enter  {:y {:scale "cat", :field "key"},
+                                     :height {:scale "cat", :band true}}},
+              :scales [{:name  "pos",
+                        :type  "ordinal",
+                        :range  "height",
+                        :domain  {:field trendfield}
+                        }],
+              :marks [{:name  "bars",
+                       :type  "rect",
+                       :properties
+                       {:enter  {:y      {:scale "pos", :field trendfield},
+                                 :height {:scale "pos", :band true},
+                                 :x      {:scale "val", :field valfield},
+                                 :x2     {:scale "val", :value 0},
+                                 :fill   {:scale "color", :field trendfield}}}},
+                      {:type  "text",
+                       :from {:mark "bars"},
+                       :properties  {:enter  {:x {:field  "x2", :offset -5},
+                                              :y {:field  "y"},
+                                              :dy {:field  "height", :mult 0.5},
+                                              :fill {:value  "white"},
+                                              :align {:value  "right"},
+                                              :baseline {:value  "middle"},
+                                              :text {:field (datum valfield)}}}}]
+              }
+             ]}))
+
+
+(def testd
+  [{:Period "PreSurge", :Response 0.542988619, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "Surge", :Response 0.894675476, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.31573259, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PreSurge", :Response 0.431484142, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "Surge", :Response 0.723484714, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.717026122, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}])
+
+(def testd2
+  [{:Period "PreSurge", :Response 0.542988619, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "Surge", :Response 0.894675476, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.31573259, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PreSurge", :Response 0.431484142, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "Surge", :Response 0.723484714, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.717026122, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "PreSurge", :Response 0.641639285, :SRC "770200R00", :demand "SS+Surge", :policy "Rotational", :measure "Fill"}
+   {:Period "Surge", :Response 0.709456869, :SRC "770200R00", :demand "SS+Surge", :policy "Rotational", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.810916048, :SRC "770200R00", :demand "SS+Surge", :policy "Rotational", :measure "Fill"}
+   {:Period "PreSurge", :Response 0.957844978, :SRC "770200R00", :demand "SS+Surge", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "Surge", :Response 0.689798911, :SRC "770200R00", :demand "SS+Surge", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.087409272, :SRC "770200R00", :demand "SS+Surge", :policy "MaxUtilization", :measure "Fill"}])
+
+(defn acrc-bars! [xs]
+  (grouped-bars xs  {
+                     :valfield   :Response
+                     :trendfield :policy
+                     :catfield   :Period
+                     :xtitle (:measure (first xs))
+                     :ytitle "Period"}))

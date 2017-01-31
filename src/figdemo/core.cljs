@@ -442,13 +442,15 @@
        (nearest-samples xs)))))
 
 (defn nearest-trends
-  ([xy]
-   (when-let [xs (seq (nearest-samples (current-path) xy))]
+  ([p xy]
+   (when-let [xs (seq (nearest-samples p xy))]
      (into [] (map (fn [kv]
                      (if (map? kv) kv
                          (let [[k v] kv]
                            {:Period   k
                             :Response (nth v 2)}))) xs))))
+   
+  ([xy] (nearest-trends (current-path) xy))
   ([] (when-let [acrc (current-data)]                 
         (nearest-trends acrc))))
 
@@ -530,14 +532,50 @@
      (let [fd (:function-data @app-state)
            xy @fd
            _  (heat/draw!
-               (heat/data->heatfacet! xs :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))
-          
+               (heat/data->heatfacet! xs :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))          
            _  (add-watch fd :cursor-movement (fn [a k old new]
                                                 (heat/set-cursor (:view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
          )))
   ([] (render-surface! (sample-surface))))
 
+;;The way FM has it, we have by surge by policy...
+;;Values are normalized.
 
+(defn group-paths []
+  (let [p              (current-path)
+        [src demand policy measure acrc] p
+        db (:db @app-state)]
+    (for [[dem xs] (get db src)
+          [pol ys] xs
+          ]
+      [src dem pol measure acrc] 
+      )))
+
+(defn group-data []
+  (apply concat
+    (for [[src dem pol measure acrc :as p] (group-paths)]
+      (map #(merge % {:SRC src :demand dem :policy pol :measure measure}) (nearest-trends p (last p))))))
+
+;;for a given selection of trends, render the corresponding
+;;grouped bar chart that looks good.
+(defn render-groups!
+  ([xs]
+   (let [m (:measure (first xs))
+         fd (:function-data @app-state)
+         xy @fd
+         grps (heat/grouped-bars xs  {
+                              :valfield   :Response
+                              :trendfield :policy
+                              :catfield   :Period
+                              :xtitle (:measure (first xs))
+                              :ytitle "Period"})
+         
+           ;;when we move our acrc supply cursor, we get different bars.
+          ; _  (add-watch fd :cursor-movement (fn [a k old new]
+          ;                                      (heat/set-cursor (:view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
+         ]
+     (heat/draw! grps)))
+  ([] (render-groups! (group-data))))
 
 ;;layout helpers, makes it a tiny bit more readable...
 (defn beside [& xs]
@@ -661,7 +699,5 @@
     (def el    (dom/getElement "the-chart"))
     (def chart (google.visualization.Gantt. el))
     )
-  
-
-
 )
+
