@@ -386,6 +386,16 @@
   ([]   (tad/path->map (current-path)))
   ([nm] (tad/path->map (get @app-state nm))))
 
+(defn paths-from [db acc path-spec]
+  (when-let [k (first path-spec)]
+    (case k
+      :?   ;;look up multiple paths.      
+      (for [k (keys db)]
+        (conj acc (paths-from (get db k) (rest path-spec))))
+      (conj acc (get db k) (rest path-spec))  ;;look up a single path.      
+      )
+    ))
+
 ;;based on the path-map
 ;(:SRC :DemandSignal :SimulationPolicy :ResponseType :ACRC)
 
@@ -454,42 +464,54 @@
   ([] (when-let [acrc (current-data)]                 
         (nearest-trends acrc))))
 
-(defn random-samples [n]
-  (when-let [bounds (sample-range)]
-    (let [{:keys [xmin xmax ymin ymax]} bounds
-          w (- xmax xmin)
-          h (- ymax ymin)
-          rand-point (fn []                       
-                       [(+ xmin (rand-int w))
-                        (+ ymin (rand-int h))])]
-      (map (fn [_] (let [xy (rand-point)]
-                     [xy (nearest-trends xy)])) (range n)))))
+(defn random-samples
+  ([n p]
+   (when-let [bounds (sample-range)]
+     (let [{:keys [xmin xmax ymin ymax]} bounds
+           w (- xmax xmin)
+           h (- ymax ymin)
+           rand-point (fn []                       
+                        [(+ xmin (rand-int w))
+                         (+ ymin (rand-int h))])]
+       (map (fn [_] (let [xy (rand-point)]
+                      [xy (nearest-trends p xy)])) (range n)))))
+  ([n] (random-samples n)))
 
 (defn enumerated [bounds]
   (let [{:keys [xmin xmax ymin ymax]} bounds]
     (* (- xmax xmin) (- ymax ymin))))
 
-(defn sparse-samples [n]
-  (when-let [bounds (sample-range)]
-    (let [{:keys [xmin xmax ymin ymax measure]} bounds
-          w   (- xmax xmin)
-          h   (- ymax ymin)]
-      (if (<= (* w h) n)
-        (for [x (range xmin xmax)
-              y (range ymin ymax)]
-          (mapv (fn [r]
-                  (merge {:AC x :RC y :measure measure} r)) (nearest-trends [x y])))
-        (random-samples n)))))
+(defn sparse-samples
+  ([n p]
+   (when-let [bounds (sample-range)]
+     (let [{:keys [xmin xmax ymin ymax measure]} bounds
+           w   (- xmax xmin)
+           h   (- ymax ymin)]
+       (if (<= (* w h) n)
+         (for [x (range xmin xmax)
+               y (range ymin ymax)]
+           (mapv (fn [r]
+                   (merge {:AC x :RC y :measure measure} r)) (nearest-trends p [x y])))
+         (random-samples n)))))
+  ([n] (sparse-samples n (current-path))))
 
 ;;generates a sample from the surface, trying to keep the
 ;;total sample size reasonable.  If it's possible to
 ;;discretely sample everything, will do.
-(defn sample-surface []
-  (when-let [bounds  (sample-range)]
-    (let [total (enumerated bounds)]
-      (apply concat (if (< total 1000)
-                        (sparse-samples total)
-                        (sparse-samples 1000))))))
+(defn sample-surface
+  ([p]
+   (when-let [bounds  (sample-range)]
+     (let [total (enumerated bounds)]
+       (apply concat (if (< total 1000)
+                       (sparse-samples total p)
+                       (sparse-samples 1000 p))))))
+  ([] (sample-surface (current-path))))
+
+;;let's define a function that takes the current path, and
+;;some variables, and returns corresponding paths...
+;;note: this is ripe for logic programming
+     
+        
 
 ;;allows us to select numeric ranges for the key.
 ;;f(ac rc) -> (current

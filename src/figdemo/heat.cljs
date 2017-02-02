@@ -1088,8 +1088,8 @@
                           xtitle     valfield
                           ytitle     "Categories"}}]
   (let [from "table"]
-    {:width 300
-     :height 300
+    {:width 200
+     :height 200
      :data [{:name from
              :values xs}]
      :scales [{:name  "cat"
