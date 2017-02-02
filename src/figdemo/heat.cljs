@@ -84,6 +84,24 @@
 ;;we could elevate them..
 ;;basically, pull the plot data out as named group data?
 
+(defn indices-by [k xs] 
+  (into {} (comp (map k) (distinct)  (map-indexed (fn [idx v] [v idx])) )  xs))
+
+;;Rather than have vega do all this, we'll just handle it ourselves man...
+;;pre-group the data...
+(defn row-col-group [row-field col-field xs]
+  (let [rows (indices-by row-field xs)
+        cols (indices-by col-field xs)
+        ]
+    (->> xs 
+         (map (fn [r]
+                (let [rw (row-field r)
+                      cl (col-field r)]
+                (assoc r :row (rows rw)
+                         :col   (cols cl)
+                         :group (str rw "-" cl)
+                         )))))))
+    
 (defn data->heatfacet! [xs xfield yfield zfield rowfield & {:keys [xtitle ytitle ztitle]
                                                             :or   {xtitle "X"
                                                                    ytitle "Y"}}]
@@ -207,8 +225,153 @@
          :baseline {:value "bottom"},
          :fill {:value "#000"}}}}
       ]}))
-;(defn layers->heat-specs [groups]
+                                        ;(defn layers->heat-specs [groups]
+
+(defn random-data [xs]
+  (let [ds ["D1" "D2" "D3"]
+        ps ["P1" "P2"]]
+    (apply concat 
+           (for [d ds
+                 p ps]
+             (map #(assoc % :Demand d
+                          :Policy p) xs)))))
+         
+       
+(defn data->heatfacets! [xs xfield yfield zfield rowfield colfield & {:keys [xtitle ytitle ztitle]
+                                                                      :or   {xtitle "X"
+                                                                             ytitle "Y"}}]
+  (let [from      "table"
+        stackname "thestack"
+        xs    (row-col-group rowfield colfield xs) ;;append :row, :col, :group fields.
+        g1    (:group (first xs))
+        xs-ys (->> xs
+                   (filter #(=     (get % :group #_rowfield) g1))
+                   (map     (juxt #(get % xfield) #(get % yfield))))
+        xvals (limit-values 10 (distinct (map first xs-ys)))
+        yvals (limit-values 10 (distinct (map second xs-ys)))
+        cursor [{xfield  (nth xvals 4)
+                 yfield  (nth yvals 4)}]
+        groupfield :group
+         ]
+    {:width  200
+     :height 500
+     :padding "auto" ;"strict"
+     :data
+     [{:name   from
+       :values xs}
+      {:name  :cursor
+       :values cursor}]
+     :scales
+     [
+      {:name "z",
+       :type "linear",
+       :domain {:data from :field zfield};[0 #_0.25 #_0.5 #_0.75 1],
+       :range ["#a50026" #_"#ffcc66" #_"#ffffbf" "#66ff33"],
+       :zero false}
+     
+      {:name "groupy",
+       :type "ordinal",
+       :range "height",
+       :padding 0.1,
+       :domain
+       {:data from,
+        :field "row"
+        :reverse true}}
+      {:name "groupx",
+       :type "ordinal",
+       :range "width"
+       :padding 0.1,
+       :domain {:data from
+                :field "col"}}]
+     ,
+     :marks
+     [{:name stackname
+       :type "group"
+       :from {:data from, :transform [{:type "facet", :groupby [groupfield]}]}
+       :properties ;;set up where to plot the marks for each group..
+         {:enter
+          {:x      {:scale "groupx", :field "col"}, ;;all charts are stacked on the same x-coordinate, {:scale "groupy", :field "key"} makes them diagonal
+           :y      {:scale "groupy", :field "row"}, ;;gives us ordinal coords by group-key [0..n]
+           :height {:scale "groupy", :band true :offset -20},  ;;use height offset to spread out the groups.
+           :width  #_{:field {:group "width"}},
+                   {:scale "groupx", :band true #_:offset #_-20}
+           :stroke {:value "#ccc"}}}
+       :legends  [{:fill "z" :values [0.0  0.5  1.0] :orient "right"
+                   :title (or ztitle zfield)}]
+       :scales   [{:name "x"
+                   :type  "ordinal"
+                   :range "width"
+                   :domain {:data from, :field xfield}
+                   }
+                  {:name "y",
+                   :type "ordinal",
+                   :range "height",
+                                        ;:points true,
+                                        ;:padding 1.2,
+                   :domain
+                   {:data from,
+                    :field yfield,
+                    },
+                   :reverse true}],
+       :axes [{:type  "x",
+               :scale "x"
+               :title xtitle
+               :values xvals
+               }
+              {:type  "y",
+               :scale "y"
+               :title ytitle
+               :values yvals
+               }]       
+       :marks [{:type "rect",
+                :properties
+                {:enter
+                 {:x {:scale "x", :field xfield},
+                  :width {:scale "x", :band true },
+                  :y {:scale "y", :field yfield},
+                  :height {:scale "y", :band true},
+                  :fill   {:scale "z", :field zfield}}}}
+               
+               {:type "rect",
+                :from {:data :cursor} 
+                :properties
+                {:enter
+                 {:x {:scale "x", :field xfield},
+                  :width {:scale "x",  :band true},
+                  :y {:scale "y", :field yfield},
+                  :height {:scale "y", :band true},
+                  :stroke {:value "black"}}
+                 :update
+                 {:x {:scale "x", :field xfield}                 
+                  :y {:scale "y", :field yfield}
+                  :fillOpacity {:value 0}}
+                 :hover
+                 {:cursor {:value :pointer}
+                  :fill   {:value "black"}
+                  :fillOpacity {:value 1.0}}
+                 
+                 
+                 }}]
+       }
+      ;;labels
+      #_{:type "text",
+       :from {:mark stackname},
+       :properties
+       ;;place a mark at 1/2 the sub-group's width...
+       {:enter
+        {:x {:field {:group "width"}, :mult 0.9},
+         :y {:field "y", :offset 2}, ;;2 pts above the plot  ;;note had to use "y" literal here.
+         :fontWeight {:value "bold"},
+         :fontSize {:value 14}
+         :text  {:field (datum rowfield)},
+         :align {:value "center"},
+         :baseline {:value "bottom"},
+         :fill {:value "#000"}}}}
+      ]}))
   
+
+#_(draw! :surface-chart
+    (data->heatfacets! (figdemo.core/sample-surface) :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))          
 
 (defn re-key [m]
   (cond (map? m) (into {} (map (fn [[k v]]
@@ -987,6 +1150,7 @@
              ]}))
 
 
+;;aborted attempt at vertical bars; needs work.
 (defn grouped-barsv [xs {:keys [valfield trendfield catfield
                             xtitle ytitle ]
                      :or {valfield   "value"
@@ -1059,11 +1223,11 @@
 
 
 (def testd
-  [{:Period "PreSurge", :Response 0.542988619, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
-   {:Period "Surge", :Response 0.894675476, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
-   {:Period "PostSurge", :Response 0.31573259, :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
-   {:Period "PreSurge", :Response 0.431484142, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
-   {:Period "Surge", :Response 0.723484714, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+  [{:Period "PreSurge",  :Response 0.542988619,  :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "Surge",     :Response 0.894675476,     :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PostSurge", :Response 0.31573259,  :SRC "770200R00", :demand "SteadyState", :policy "Rotational", :measure "Fill"}
+   {:Period "PreSurge",  :Response 0.431484142,  :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
+   {:Period "Surge",     :Response 0.723484714,     :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}
    {:Period "PostSurge", :Response 0.717026122, :SRC "770200R00", :demand "SteadyState", :policy "MaxUtilization", :measure "Fill"}])
 
 ;; (defn add-trend [xs]

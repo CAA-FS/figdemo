@@ -7,14 +7,14 @@
             [figdemo.util :as util]
             [figdemo.io :as io]
             [figdemo.controls :as controls]
-            [figdemo.gantt :as gantt]
+;            [figdemo.gantt :as gantt]
             [figdemo.tadmudi :as tad]
             [figdemo.spork.util.table :as tbl]
             [figdemo.bmi  :as bmi]
             [figdemo.high :as high]
             [figdemo.heat :as heat] ;;vega-based heatmap
             [reagent.core :as r]
-            [re-com.core   :refer [h-box gap v-box hyperlink-href p] :as recom]
+            [re-com.core   :refer [h-box gap v-box hyperlink-href p button] :as recom]
             [re-com.util   :refer [item-for-id]]
             ;[cljsjs.vega-lite]
             ))
@@ -90,7 +90,7 @@
 
 ;;obe 
 ;;we can use channels to munge around the async wierdness.
-(defn draw-current-chart []
+#_(defn draw-current-chart []
   (when-let [chrt (io/current-file)]
     (go 
     (let [_     (println (str "drawing the chart at " (.-name chrt)))
@@ -153,9 +153,9 @@
    [:div {:id "tad-selector"}
        "Select and Load a Valid TADMUDI Dataset"
        [:form 
-        "TADMUDI-file:"   [:input {:type "file"
-                                   :name "tad-file-r"
-                                   :id   "tad-file-r"
+        "TADMUDI-file:"   [:input {:type     "file"
+                                   :name     "tad-file-r"
+                                   :id       "tad-file-r"
                                    :on-click (fn [e] (println "loading-tad!"))}]
         "Load-TADMUDI:"   [:input {:type "button"
                                    :name "load-tad-button-r"
@@ -368,7 +368,7 @@
                  (let [{:keys [data choice]} (get db lbl)]
                    [(selection-list choice-seq :data data :choice choice :field lbl)]))))]))))
 
-(defn gantt-selector []
+#_(defn gantt-selector []
   [:div {:id "gantt-selector"}
    "Our gannt input form..."
    ;;let's work on replacing this with some hiccup html
@@ -617,6 +617,13 @@
    :gap      "10px"
    :children (vec xs)])
 
+(defn notes []
+  [hyperlink-href 
+   :label     "Read Notes" 
+   :tooltip   "Learn more about the tool..." 
+   :href       "assets/notes.html"])
+
+
 ;;we want to have a chart rendering channel.
 ;;Basically, communicate with the chart by pushing new trends to a channel,
 ;;then have interested subscribers update based on said trend.
@@ -650,7 +657,8 @@
             _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))           
             ]
         [above
-          [:h2 "Welcome to the TADMUDI Data Exploration Extravaganza"]
+         [:h2 "Welcome to the TADMUDI Data Exploration Extravaganza"]
+          [notes]
           [:p "Once you select a database, interactive widgets will pop up, as well as charts!"]
           [tad-selector menu-items]
          [beside
@@ -674,6 +682,8 @@
             [trends->txt nt]]]
           ;;our surface is here.
           [heat/vega-root]]
+          [:div {:id "button"}
+          [button :label "render-charts!" :on-click (fn [_] (draw-charts!))]]
          ]
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
@@ -702,6 +712,7 @@
              [bmi/bmi-component]]
           #_[:div {:id "gyp"}           
              [gyp/root]]
+         
           ))))
 
 ;;just an example of rendering react components to dom targets.

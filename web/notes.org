@@ -1,0 +1,207 @@
+# This is a template for pushing out org files that are compatible 
+# with both html and latex export.  Specifically, these files 
+# Support code highlighting - for clojure code - and typeset 
+# the code to look different from the main sections.  The 
+# design is meant for providing a quick template to inject 
+# clojure source into org docs, and provide an interactive, 
+# repl-friendly presentation.
+#+TITLE: Notes on CLJS Application
+#+AUTHOR: T. Spoon
+#+DATE: 1 Feb 2017
+#+VERSION: 1.2
+#+STARTUP: showall
+# If we choose html export, we get dark backgrounds behind code blocks.
+
+#+HTML_HEAD: <style>pre.src {background-color: #303030; color: #e5e5e5;}</style>
+
+
+# These imports basically let us use colored boxes around our syntax-highlighted code.
+#+LaTeX_HEADER:\usepackage{tcolorbox}
+#+LaTeX_HEADER:\usepackage{etoolbox}
+#+LaTeX_HEADER:\usepackage{minted}
+#+LaTeX_HEADER:\BeforeBeginEnvironment{minted}{\begin{tcolorbox}[colback=black!5!white]}%
+#+LaTeX_HEADER:\AfterEndEnvironment{minted}{\end{tcolorbox}}%
+
+# Source code template
+#+BEGIN_COMMENT
+This is a source code example.
+Use this as a template for pasting code around.
+#+BEGIN_SRC clojure 
+  ;;Check out my comment yo.
+  (defn plus2 [x]
+    (+ x 2))
+  (for [x (range 100)]
+    (plus2 x))
+#+END_SRC 
+#+END_COMMENT
+
+Rick + Craig, 
+
+
+* Build Notes:
+  I figured out the problem, and it was my fault.  
+  I had a dependency on google charts (which I was using earlier) that was being pulled 
+  in externally in the .html file, rather than via the build system.  I shimmed it back in for the moment.
+  After that, everything works for the minified, deployed build of the app. 
+
+* App Notes:
+  The application is a dumb concept piece for how to explore a database of marathon runs,
+  stemming from the conversations between all of us.  Craig's current app is in VBA/excel, 
+  but I offer this (again, alpha / janky) example as a possible way forward. 
+  I'll clean up the source and push it out as a repository (probably under the geldersoft site) in the near future. 
+  I'm interested in copping some of the research into little offline data/project viewers for MARATHON,
+  possibly as re-usable components for a browser-based interface in the far flung future.
+
+** Intent 
+   I'm still working on this, but the general idea is to provide an interactive data exploration / comparison 
+   tool to enable analysts to engage in quick what-if scenarios related to cost/benefit analyses.
+   - The supporting data for said analyses is either static (i.e. computed algebraically), or 
+     dynamic, derived from simulation output.
+   - In either case, if we don't plan on providing the client with the means to simulate on-demand, 
+     we can provide a useful set of experimental runs (or calculated algebraic results) wrapped behind 
+     the facade of a queryable database.
+   - The database provides a collection of performance metrics across combinations of:
+     - ac supply
+     - rc supply 
+     - SRC 
+     - demand scenario
+     - rotational policy 
+     - surge period 
+   - With the primary responses:
+     - Fill  (% demand satisfaction).
+     - Surplus (Delta between available supply and supply demanded).
+   
+   If we compute the supporting data ahead of time by performing many simulation experiments over a 
+   set of design points that "cover" the factors, we can use simple interpolation schemes to provide 
+   a lightweight, portable means for interacting with the response surface(s).
+   
+   By juxtaposing points on the response surface(s), defind by user queries, analysts can explore the 
+   surfaces by changing factors like AC/RC supply.  Changes are then interpolated and projected live 
+   so that the user can explore the implications of trade-offs.
+
+   Currently, bar-charts and heat-map facets are used to provide two different views of the data.  
+   Other visualization schemes may be compelling, and with the tech stack in use, we have access to 
+   a bevy of custom techniques.  There is still a question of utility, and practicaly, that we are 
+   actively exploring.
+
+** Design
+   The application is intended to be either served, or stored on a local filesystem.  In either case, the 
+   web-browser is directed to open the index.html, which serves as the entry-point for the app. 
+
+   If you look at the index.html, there's not much to the app.  Just a single div tag labeled "reagent-app".
+   That, and a solitary javascript tag reference.  
+
+   The big idea here is that everything is handled in ClojureScript, using what looks like native clojure code to 
+   define reactive web pages. Clojure(Script) does the bulk of the heavy lifting for data processing, offloading
+   visualization work to the Vega library.  The advantage here is obvious: we can leverage our familiarity with 
+   clojure - and any existing non-jvm specific clojure libaries - to define our application.  Combined with an 
+   excellent build system and the lack of web-specific features (like the need to learn HTML, CSS, etc.), we 
+   can "live" in ClojureScript - for the most part - and simply use the browser as a renderer.  Combined with 
+   the interactive browser-based REPL experience and auto-compilation provided by FigWheel, this is a compelling
+   means for building portable client-side applications.
+
+   So, we have a simple, single-page application that can be loaded (even from IE), and run as if it were a 
+   client-side app.  This maintains the browser sandboxing, and still lets the user do things we're using 
+   Excel for (namely client-side psuedo applications...).  Currently, the application operates on local 
+   tab-delimited text files, and merely provides interactive views of the data.
+
+** Libraries
+   I ended up traversing multiple libraries for this, starting with google Closure for web controls 
+   (don't recommend going this route), then moving on to a combination of reagent 
+   (for data management/reactive state), Vega (for charting, started out with highcharts), 
+   and re-com (a set of pre-baked components and controls built around reagent). 
+   During the course, I actually tangled with Google Charts, and HighCharts.
+
+   - I now know how to effectively pull libraries in via leiningen, and how to wrap stateful  
+     "components" via reagent.
+   - Interop with JavaScript is no longer a burden, although it is somewhat different than Java interop.
+   - Understand the subtle differences between clojure/cljs.
+   - Understand the build-system and tooling for deploying stand-alone single-page applications and static 
+     websites. 
+
+* Usage:
+
+** Select a file 
+When you open the page, there's a file-selector asking for a "tadmudi file.: 
+- This is a simple table of run data, ideally experiments (MARATHON runs) across combinations of ac/rc supply,
+  policy, demand, and measures.   
+
+** Load TADMUDI
+When a local file is selected (the aforementioned sampledata, for example...),
+the user (currently) selects the "load tadmudi" button.  
+  - This parses the file and builds an in-memory database from it.  
+  - Future iterations will just load the file after selection is made and eliminate the button entirely. 
+
+** Select a Path
+From here, a blank "path" indicator should pop up, along with a drop-down dialogue named "SRC".  
+- This is reactive component I built for "walking" a path into the db.
+- As the user selects an item at the current path into the db, the change is reflected in the path string.
+- A new drop-down box appears with the choices of the next segment in the path. 
+- Currently, if you alter an earlier choice, the path is truncated and later choices (drop down menus) are removed.  
+
+The goal is a to define a path to a collection of samples in the database (a map of maps or tree), where samples are ordered 
+according to groups defined by the path keys.
+- For example, our first level provides choices for "SRC" values.
+- Then "Demand", etc.
+- The leaves of the tree contain a collection of records, of which the "path" is equivalent to a compound key for grouping.
+- If we "get-in" the database using the path as a sequence of keys, we return the sampled records.
+
+After you define a path to a collection of samples in the database, a couple of sliders will pop up.   
+- Currently, the app expects us to make an initial selection for ac/rc supply (the last piece of the path / last dropdown).
+
+** Render Charts 
+From there, you can click the render-charts button.
+- This will populate an interactive bar chart and a series of heatmaps.
+- Heatmaps show an interpolated response surface derived from the path in the db for all AC/RC mixtures (currently only for the current path).
+- BarCharts plot the measure of the current path (say fill), while adding trends for neighboring samples:
+  - Neighbors are currently defined as other paths with identical segments except for the Policy key.
+  - Trends correspond to policies.
+  - Trends only display for one path/SRC at the moment.
+
+
+** Interact with the Data
+At this point, you can move the AC/RC sliders, where changing the sliders will cause:
+- A reflection in the bars as data is dynamically updated. 
+  - Different values for the AC/RC mixture are fixed, and the bars are updated.
+  - Presents a "local" view of the changes in response to AC/RC supply.
+- A moving "cursor" on the surfaces, represented by a black-outlined cell.
+  - the "cursor" is moved around the surface to reflect the current AC/RC mix.
+  - Provides a "global" view of the current mixture, related to all possible mixtures across multiple 
+    juxtaposed response surfaces (one for each period currently). 
+
+* Pending Features
+** More Paths 
+Original development focused on a global database, with a corresponding global path.
+It makes sense to have multiple paths, each with their own widgets and sampled data and charts.
+The general mechanism is in place for this to work quite easily, we just need to refactor.
+It'd also be nice to allow users to save and edit paths, via some modal focus.
+
+** More Charts 
+Vega is great for defining specifications, typically taken from examples, and then building 
+custom charts based on the template. 
+However, it takes time to learn to use "vega" operations, and speak its special grammar.
+My approach - at the moment - is to find a spec that looks like what I want, then do 
+most of the work in Vega to generate complex plots.
+  - Say, a faceted heatmap with an interactive cursor.
+This is great, but I'm not able to customize charts super rapidly yet.
+We could explore 3d plots, scatter plots, scatter matrices, etc.
+I'd also like to get interactive filtering working and turned on.
+
+** Smarter Reactivity 
+Things like auto-charting or auto-loading vs. having to press buttons.
+Using channels to decouple and communicate would probably help this even more.
+
+** More local state
+State is fairly globalized in 2 atoms.  May need to rethink this.
+
+** Better UI / More useful UI? / Better Dashboard?
+I'm still struggling to find out how clients are using this. 
+I think there is opportunity for providing some optimal points or summarized data 
+that would obviate the need to interactively "explore" the data so much. 
+
+* Bugs
+If you render charts, and change the path, you must render again to see new charts.
+Any interaction with the sliders will cause graphical errors and the data will not 
+update properly.  This is a problem with state-management, and is tedious but not hard 
+to solve. If this happens, just reload the app and start over.
+
