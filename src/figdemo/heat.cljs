@@ -183,19 +183,19 @@
        :marks [{:type "rect",
                 :properties
                 {:enter
-                 {:x {:scale "x", :field xfield},
-                  :width {:scale "x", :band true },
-                  :y {:scale "y", :field yfield},
-                  :height {:scale "y", :band true},
+                 {:x      {:scale "x", :field xfield},
+                  :width  {:scale "x", :band  true },
+                  :y      {:scale "y", :field yfield},
+                  :height {:scale "y", :band  true},
                   :fill   {:scale "z", :field zfield}}}}
                
                {:type "rect",
                 :from {:data :cursor} 
                 :properties
                 {:enter
-                 {:x {:scale "x", :field xfield},
-                  :width {:scale "x",  :band true},
-                  :y {:scale "y", :field yfield},
+                 {:x      {:scale "x", :field xfield},
+                  :width  {:scale "x",  :band true},
+                  :y      {:scale "y", :field yfield},
                   :height {:scale "y", :band true},
                   :stroke {:value "black"}}
                  :update
@@ -293,8 +293,8 @@
           {:x      {:scale "groupx", :field "col"}, ;;all charts are stacked on the same x-coordinate, {:scale "groupy", :field "key"} makes them diagonal
            :y      {:scale "groupy", :field "row"}, ;;gives us ordinal coords by group-key [0..n]
            :height {:scale "groupy", :band true :offset -20},  ;;use height offset to spread out the groups.
-           :width  #_{:field {:group "width"}},
-                   {:scale "groupx", :band true #_:offset #_-20}
+           :width  {:field {:group "width"}},
+                   #_{:scale "groupx", :band true #_:offset #_-20}
            :stroke {:value "#ccc"}}}
        :legends  [{:fill "z" :values [0.0  0.5  1.0] :orient "right"
                    :title (or ztitle zfield)}]
