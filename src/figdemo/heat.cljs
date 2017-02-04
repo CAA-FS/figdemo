@@ -899,10 +899,31 @@
                 _    (swap! app-state assoc :view view)]
             (.update view)))})))
 
+;;We have multiple trends...
+;;The current visualization is a bunch of response surfaces.
+;;For each surface, we have a 
+;;can we define a chart component that has multiple charts?
+;;like a vega-chart...
+;;we initially have no charts..
+;;only a container.
+;;Each chart is created by a constructor (which needs a container).
+;;So, something like
+;;  (for [[name chrt] charts]
+;;    (let [v (chart container)
+;;          _ (swap! active-charts assoc name chrt)
+;;          _ (.update v)]
+;;      ))
+     
+            
+;; (defn chart-shelf [{:keys [name charts cursor]}]
+;;   ;;render the charts side-by-side...
+;;   [:div {:id name}
+;;    (beside charts)])
+
 (defn parse-input []
   (let [{:keys [input]} @app-state]
     (swap! app-state assoc :chart nil :error nil)
-    (-> (reader/read-string input)
+    (-> (reader/read-string      input)
         (vega-tools/validate-and-parse)
         (p/catch #(swap! app-state assoc :error % :view nil))
         (p/then #(swap! app-state assoc :chart %)))))
@@ -915,6 +936,17 @@
        (p/catch #(swap! app-state assoc :error %))
        (p/then #(swap! app-state assoc k %))))
   ([s] (draw! :chart s)))
+
+;;if there's an error...
+;;render bad-chart spec?
+;;can we ignore the promise stuff?  I don't really
+;;care about them.
+#_(defn spec->chart [s]
+    (-> s
+        (vega-tools/validate-and-parse) ;;returns a promise
+        (p/catch #(swap! app-state assoc :error %))
+        (p/then #(swap! app-state assoc k %))))
+  
 
 ;;we can predicate this to look for a specific chart.
 
@@ -958,7 +990,22 @@
 (defn surface-root []
   (let [_ (js/console.log "Starting the surface-root")]
     (fn [] 
-      (let [{:keys [error surface-chart cursor]} @app-state]
+      (let [{:keys [error surface-chart cursor]} @app-state]  ;;assumes one chart.
+        [:div
+         (cond
+           error [:div
+                  [:h2 "Surface Validation error"]
+                  [:pre (with-out-str (pprint/pprint error))]]
+           surface-chart [vega-chart {:name "surface-chart" :chart surface-chart :cursor cursor}]
+           :else "Processing...Bars")]))))
+
+;;we're basically binding the chart's name to a property in the state...
+(defn chart! [chrt name cursor state]
+  (let [_ (js/console.log (str "Starting the " name "-root"))]
+    (fn [] 
+      (let [chart  (get state name)
+            ;;rather than have an interactive parse, why not do a try-parse here!
+            {:keys [error surface-chart cursor]} @app-state]  ;;assumes one chart.
         [:div
          (cond
            error [:div
@@ -975,6 +1022,13 @@
        [bars-root]
        [surface-root]]       
       )))
+
+;;can we re-write vega-root...
+;;so that it's a function of data?
+;;If there's new data, we update the charts?
+;;Currently, we assume that there's some global state,
+;;app-state, that maintains all of the views.
+;;Note: a view is just a 
 
 ;;we can get an equivalent table of data...
 ;;vega tables look like this...
