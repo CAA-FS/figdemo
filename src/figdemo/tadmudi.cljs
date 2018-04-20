@@ -71,14 +71,33 @@
         (map vector path-keys
              p)))  
 
-(defn distinct-fields [xs]
-  (reduce (fn [acc r]
-            (reduce-kv (fn [acc k v]
-                         (assoc acc k
-                                (conj (get acc k #{}) v)))
-                       acc r))
-          {} xs))
+#_(defn distinct-fields [xs]
+    (reduce (fn [acc r]
+              (reduce-kv (fn [acc k v]
+                           (assoc acc k
+                             (conj (get acc k #{}) v)))
+                acc r))
+      {} xs))
 
+(defn distinct-fields [xs]
+  (let [fields (atom {})
+        get-field!  (fn [k]
+                      (if-let [res (get fields k)]
+                        res
+                        (let [flds (atom (transient #{}))]
+                          (swap! fields assoc k flds)
+                          flds)))]
+    (doseq [r xs]
+      (reduce-kv (fn [_ k v]
+                   (let [vs (get-field! k)
+                         _  (swap! vs conj! v)]
+                     nil)) nil r))
+    (into {} (for [[fld vs] @fields]
+               [fld (persistent! @vs)]))))
+                   
+    
+    
+  
 ;;Builds up a nested database
 (defn tad-db [xs & {:keys [keyf]
                     :or   {keyf  (juxt :ACInventory
@@ -88,7 +107,7 @@
               (let [k  (path-key r)
                     rs (get-in acc k [])]
                 (assoc-in acc k (conj rs (select-keys  r [:Period :Response])))))
-            (with-meta {} {:domains (distinct-fields xs)})
+            (with-meta {} {:domains field-domains})
             xs)))
 
 ;;io 
@@ -141,9 +160,9 @@
         planes    (reduce (fn [acc [period coords]]
                             (assoc acc period
                                    (conj (get acc period [])
-                                         coords))) {} zs)
+                                         coords))) {} zs)]
         ;;we can project our point onto each plane now.
-        ]
+        
     (-> (for [[period plane] planes]
           [period (proj/onto-plane p (proj/->plane-vec plane))]))))
 
@@ -237,9 +256,9 @@
        :DemandSignal demand :AnalysisType atype :ResponseType r-type :Period p
        :Response (case r-type
                    "Fill"  (rand)
-                   (rand-int 10))}))
+                   (rand-int 10))})))
     
         
-)
+
 
 (defn td [])

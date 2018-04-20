@@ -15,9 +15,9 @@
             [figdemo.heat :as heat] ;;vega-based heatmap
             [reagent.core :as r]
             [re-com.core   :refer [h-box gap v-box hyperlink-href p button] :as recom]
-            [re-com.util   :refer [item-for-id]]
+            [re-com.util   :refer [item-for-id]]))
             ;[cljsjs.vega-lite]
-            ))
+            
 
 (enable-console-print!)
 
@@ -28,8 +28,8 @@
 (defonce app-state (r/atom {:text "Hello world!"
                             :table-node "Table goes here!"
                             :chart-node "Chart-goes here!"
-                            :tree-node  "Tree goes here!"
-                            }))
+                            :tree-node  "Tree goes here!"}))
+                            
 
 ;;UTILS
 (def structures #{"{" "["})
@@ -41,7 +41,7 @@
 (defn as-val [x]
   (if (structures (first x))
     (cljs.reader/read-string x)
-     x))
+    x))
 
 (defn bind->
   ([l r]
@@ -91,36 +91,36 @@
 ;;obe 
 ;;we can use channels to munge around the async wierdness.
 #_(defn draw-current-chart []
-  (when-let [chrt (io/current-file)]
-    (go 
-    (let [_     (println (str "drawing the chart at " (.-name chrt)))
-          xs    (async/<!     (io/file->lines!! chrt))
-          lines (clojure.string/split-lines xs)
-          _     (println [:lines (take 2 lines)])
-          recs  (map gantt/gantt-row (rest lines))
-          data  (gantt/gantt-table (map clj->js recs))          
-          ]
-      (do (gantt/draw-chart data controls/the-chart)
-          (gantt/draw-table data controls/the-table)
-          )))))
+   (when-let [chrt (io/current-file)]
+     (go 
+      (let [_     (println (str "drawing the chart at " (.-name chrt)))
+            xs    (async/<!     (io/file->lines!! chrt))
+            lines (clojure.string/split-lines xs)
+            _     (println [:lines (take 2 lines)])
+            recs  (map gantt/gantt-row (rest lines))
+            data  (gantt/gantt-table (map clj->js recs))]          
+          
+        (do (gantt/draw-chart data controls/the-chart)
+            (gantt/draw-table data controls/the-table))))))
+          
 
 ;;notice, these are reactions, we're wiring stuff up manually.
 ;;in other frameworks, like re-frame, we can define this a bit
 ;;more declaratively. 
 (defn load-tad [& {:keys [source data] :or {source "tad-file" data app-state}}]
   (go (let [xs (async/<!    (io/file->lines!! (io/current-file :el source)))
-            db (tad/txt->tad-db xs)            
+            db (tad/txt->tad-db xs)]            
             ;;this gives us a renderable widget ala util/render! 
             ;;the-path (util/db->path db :id "the-tree")
-            ]
+            
         (do (swap! data assoc ;:path the-path
                    :db db) ;;this is not showing up....
             (swap! app-state assoc :db db)
             ;;given the-path, we can
             #_(util/render! the-path "the-tree")
-            nil
-            )))
-      nil)
+            nil)))
+            
+  nil)
 
 ;;we'll break up loading and rendering...
 
@@ -136,8 +136,8 @@
   ;;your application
   ;;(swap! app-state update-in [:__figwheel_counter] inc)
   #_(swap! app-state assoc :draw     draw-current-chart
-         :load-tad load-tad)
-  )
+         :load-tad load-tad))
+  
 
 ;;setup our button click to trigger rendering the chart
 ;;the "old fashioned" way
@@ -161,10 +161,10 @@
                                    :name "load-tad-button-r"
                                    :id   "load-tad-button-r"
                                    :on-click (fn [e]                                               
-                                               (do (load-tad :source "tad-file-r" :data menu-items)                                                   
-                                                   )
-                                               (println "loading-tad-db!!")
-                                               )}]]])
+                                               (do (load-tad :source "tad-file-r" :data menu-items))                                                   
+                                                   
+                                               (println "loading-tad-db!!"))}]]])
+                                               
 
 ;;currently, we have a path-tree.
 ;;what we'd really like to do is create a list of selection-boxes.
@@ -186,9 +186,9 @@
         :children [#_[p "The dropdown below shows how related choices can be displayed in groups."
                       "In this case, several country related groups. e.g. 'EN COUNTRIES'."] 
                    #_[p "This feature is triggered if any choice has a " [:code ":group"]
-                    " attribute. Typically all choices will have a " [:code ":group"]
-                    " or none will. It's up to you to ensure that choices with the same "
-                    [:code ":group"] " are adjacent in the vector."] 
+                      " attribute. Typically all choices will have a " [:code ":group"]
+                      " or none will. It's up to you to ensure that choices with the same "
+                      [:code ":group"] " are adjacent in the vector."] 
                    #_[p "Because :model is initially nil, the " [:code ":placeholder"] " text is initially displayed."] 
                    #_[p [:code ":max-width"] " is set here to make the dropdown taller."] 
                    [h-box 
@@ -206,9 +206,9 @@
                                [:div 
                                 [:strong field] 
                                 #_(if (nil? @selected-choice-id) 
-                                  "None" 
-                                   @data #_(item-for-id @selected-choice-id choice-seq)
-                                   )]]]]])))
+                                   "None" 
+                                   @data #_(item-for-id @selected-choice-id choice-seq))]]]]])))
+                                   
 
 ;;the problem we have with menu-component, is that we're re-computing the menu, or
 ;;we mean to.  Here, the menu-component only ever takes a single menu-seq,
@@ -357,27 +357,27 @@
                                                      (nth @path id))))
                                  choice (r/atom (when @data (find-choice-id choice-seq @data)))
                                  _      (add-watch data lbl (compute-path! (int (lbl->idx lbl))))]
-                             [lbl {:data data :choice choice}])))
-            ]
-      [v-box
-       :gap "10px"
-       :children
-       (if  (empty? db)     [[:label "no menu loaded...."]] ;;empty menu
-         (into [[:label (str {:path @path})]] ;;menu with current path.
-               (for [[lbl choice-seq] menu-seq]
-                 (let [{:keys [data choice]} (get db lbl)]
-                   [(selection-list choice-seq :data data :choice choice :field lbl)]))))]))))
+                             [lbl {:data data :choice choice}])))]
+            
+       [v-box
+        :gap "10px"
+        :children
+        (if  (empty? db)     [[:label "no menu loaded...."]] ;;empty menu
+          (into [[:label (str {:path @path})]] ;;menu with current path.
+                (for [[lbl choice-seq] menu-seq]
+                  (let [{:keys [data choice]} (get db lbl)]
+                    [(selection-list choice-seq :data data :choice choice :field lbl)]))))]))))
 
 #_(defn gantt-selector []
-  [:div {:id "gantt-selector"}
-   "Our gannt input form..."
+   [:div {:id "gantt-selector"}
+    "Our gannt input form..."
    ;;let's work on replacing this with some hiccup html
-   [:form 
-    "GanttFile:"    [:input {:type "file"
-                             :name "gantt-file-r"
-                             :id   "gantt-file-r" :on-click (fn [e] (println "loading-gantt!"))}]
-    "DrawGantt:"    [:input {:type "button" :name "drawgantt-r" :id "drawgantt-r"
-                             :on-click (fn [e] (println "drawing-gantt!"))}]]])
+    [:form 
+     "GanttFile:"    [:input {:type "file"
+                              :name "gantt-file-r"
+                              :id   "gantt-file-r" :on-click (fn [e] (println "loading-gantt!"))}]
+     "DrawGantt:"    [:input {:type "button" :name "drawgantt-r" :id "drawgantt-r"
+                              :on-click (fn [e] (println "drawing-gantt!"))}]]])
 
 
 (defn current-path []    (get @app-state :current-path))
@@ -392,9 +392,9 @@
       :?   ;;look up multiple paths.      
       (for [k (keys db)]
         (conj acc (paths-from (get db k) (rest path-spec))))
-      (conj acc (get db k) (rest path-spec))  ;;look up a single path.      
-      )
-    ))
+      (conj acc (get db k) (rest path-spec)))))  ;;look up a single path.      
+      
+    
 
 ;;based on the path-map
 ;(:SRC :DemandSignal :SimulationPolicy :ResponseType :ACRC)
@@ -406,7 +406,7 @@
 ;;looking up values in our database...
 (defn current-samples []
   (when-let [xs (seq (current-path))]
-    (get-in (:db @app-state) xs )))
+    (get-in (:db @app-state) xs)))
 
 (defn butlast-path [p]
   ((juxt :SRC :DemandSignal :SimulationPolicy :ResponseType)
@@ -433,6 +433,11 @@
     (assoc (coords->bounds xs)
            :measure (current-measure))))
     
+(def nearest! 
+  (memoize
+    (fn [db p]
+      (tad/nearest-samples db p))))
+
 ;;this allows us to wrap the tadmudi api,
 ;;so we can traverse the current db a couple of
 ;;different ways.
@@ -445,7 +450,7 @@
      (when db
        (if-let [res (get-in db p)]
          res
-         (tad/nearest-samples db p)))))
+         (#_tad/nearest-samples nearest! db p)))))
   ([]
    (when-let [xs (seq (current-path))]
      (when (= (count xs) 5) ;;brittle!
@@ -544,9 +549,19 @@
     (reduce (fn [acc m]
               (conj acc 
                     [:div {}
-                     [:label (str (m :Period) ": " (m :Response))]
-                     ])) [:div {:id "blah"}]  @xs)))
+                     [:label (str (m :Period) ": " (m :Response))]]))
+            [:div {:id "blah"}]  @xs)))
 
+(defn acrc-changed [old new]
+   (let [{:keys [AC RC]} new
+         AC (int AC)
+         RC (int RC)]
+     (when
+       (or (not= (int (:AC old)) AC) 
+           (not= (int (:RC old)) RC))
+       [AC RC])))
+  
+  
 ;;we want to render our path as a collection of surfaces.
 (defn render-surface!
   ([xs]
@@ -555,9 +570,12 @@
            xy @fd
            _  (heat/draw! :surface-chart
                (heat/data->heatfacet! xs :AC :RC :Response :Period :xtitle "AC" :ytitle "RC" :ztitle m))          
-           _  (add-watch fd :cursor-movement (fn [a k old new]
-                                                (heat/set-cursor (:surface-chart-view @heat/app-state) :AC :RC (int (:AC new)) (int (:RC new)))))]
-         )))
+           _  (add-watch fd :cursor-movement 
+                (fn [a k old new]
+                  (when-let [acrc (acrc-changed old new)]
+                    (let [[AC RC] acrc]
+                      (heat/set-cursor (:surface-chart-view @heat/app-state) 
+                        :AC :RC AC RC)))))])))
   ([] (render-surface! (sample-surface))))
 
 ;;The way FM has it, we have by surge by policy...
@@ -569,10 +587,10 @@
         acrc (or (current-data) acrc)
         db (:db @app-state)]
     (for [[dem xs] (get db src)
-          [pol ys] xs
-          ]
-      [src dem pol measure acrc] 
-      )))
+          [pol ys] xs]
+          
+      [src dem pol measure acrc]))) 
+      
 
 (defn group-data []
   (apply concat
@@ -590,8 +608,8 @@
                           (->> xs
                                (mapv (fn [r] (assoc r :trend
                                                     (str #_(:SRC r) #_"-" (:demand r) "-" (:policy r))
-                                                    :Response (util/as-decimal (:Response r) 2)
-                                                    )))))
+                                                    :Response (util/as-decimal (:Response r) 2))))))
+                                                    
                        
          grps (-> xs
                   (groups->datums)
@@ -601,21 +619,20 @@
                                       :xtitle (:measure (first xs))
                                       :ytitle "Period"}))         
            ;;when we move our acrc supply cursor, we get different bars.
-        _ (add-watch fd :group-movement
-                    (fn [a k old new]
-                      (let [grps (->> (group-data)
-                                      (groups->datums)
-                                      (clj->js))
-                            bc   (:bar-chart-view @heat/app-state)
-                            
-                            data (. bc data "table")
-                            _    (.remove data (fn [_] true))
-                            _    (.insert data grps)
-                            ]
-                        #_(heat/draw! :bar-chart grps)
-                        (.update bc))
-                        ))                        
-         ]
+         _ (add-watch fd :group-movement
+                     (fn [a k old new]
+                       (when (acrc-changed old new)
+                         (let [grps (->> (group-data)
+                                         (groups->datums)
+                                         (clj->js))
+                               bc   (:bar-chart-view @heat/app-state)
+                               
+                               data (. bc data "table")
+                               _    (.remove data (fn [_] true))
+                               _    (.insert data grps)]
+                           
+                           #_(heat/draw! :bar-chart grps)
+                           (.update bc)))))]     
      (heat/draw! :bar-chart grps)))
   ([] (render-groups! (group-data))))
 
@@ -660,14 +677,14 @@
         map-path       (r/atom []) ;(->property  :current-path  [])
         nt             (r/atom nil)
         update-trends! (fn [x y] (let [tr   (nearest-trends)
-                                        _   (reset! nt tr)
-                                       ]
-                                   tr
+                                        _   (reset! nt tr)]
+                                       
+                                   tr))
                                         ;(+ x y)
-                                     ))
+                                     
         _             (bind-> map-path app-state (fn [s newval] (assoc s :current-path newval)))
-        _             (swap! app-state assoc :function-data function-data)
-        ]
+        _             (swap! app-state assoc :function-data function-data)]
+        
     (fn [] 
       (let [{:keys [table-node chart-node tree-node db]} @app-state
             mitems   (:db @menu-items) ;;this changes...
@@ -676,13 +693,13 @@
                                 (if-let [v (get @selection k)]
                                   (conj acc [k (as-val v)])
                                   (reduced nil))) []  menu)
-            _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))           
-            ]
+            _        (when the-path (swap! app-state assoc :current-path (mapv second the-path)))]           
+            
         [above
          [:h2 "Welcome to the TADMUDI Data Exploration Extravaganza"]
-          [notes]
-          [:p "Once you select a database, interactive widgets will pop up, as well as charts!"]
-          [tad-selector menu-items]
+         [notes]
+         [:p "Once you select a database, interactive widgets will pop up, as well as charts!"]
+         [tad-selector menu-items]
          [beside
           [above 
            ;;on ice for now.
@@ -690,8 +707,8 @@
             ;;map-selector returns a function, initialized off mitems, that stores a dynamic path in
             ;;map-path.  That is then applied to the mitems going forward.  Probably a better idea to
             ;;just pass in the atom though....
-            [(->map-selector map-path :labels tad/path-labels #_["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]
-            ]
+            [(->map-selector map-path :labels tad/path-labels #_["SRC" "Scenario"  "Measure" "[AC RC]"]) mitems]]
+            
            ;;given a path, we'll let the last segment be reactive....
            [:div {:id "Coordinates"}
             ;;Allow the user to dynamically vary the x/y coordinates to recompute Z.
@@ -704,15 +721,15 @@
             [trends->txt nt]]]
           ;;our surface is here.
           [heat/vega-root]]
-          [:div {:id "button"}
-          [button :label "render-charts!" :on-click (fn [_] (draw-charts!))]]
-         ]
+         [:div {:id "button"}
+          [button :label "render-charts!" :on-click (fn [_] (draw-charts!))]]]
+         
           ;;we'll put our reactive bar-chart here...
           ;;Figure out how to change the data for the bar chart dynamically.
           ;;Optionally re-render the whole thing.
-          #_[:div {:id "tad-bar"}
-             [high/chart-component]
-             ]
+        #_[:div {:id "tad-bar"}
+           [high/chart-component]]
+             
           #_[:div {:id "selection"}
              [selection-list  [{:id "a" :label "a"}
                                {:id "b" :label "b"}
@@ -722,20 +739,20 @@
           #_[gantt-selector]
           ;;look into using an h-box alternately.
           #_[:table #_{:align  "left"}
-           [:tbody
-            [:tr   #_{:valign "top" }
-             [:td
-              [:div {:id "the-table" :style {:width "700px" :height "300px"}}
-               table-node]]         
-             [:td
-              [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
-               chart-node]]]]]
+             [:tbody
+              [:tr   #_{:valign "top"}
+               [:td
+                [:div {:id "the-table" :style {:width "700px" :height "300px"}}
+                 table-node]]         
+               [:td
+                [:div {:id "the-chart" :style {:align "center" :width "1400px" :height "300px"}}
+                 chart-node]]]]]
           #_[:div {:id "bmi"}
              [bmi/bmi-component]]
           #_[:div {:id "gyp"}           
-             [gyp/root]]
+             [gyp/root]]))))
          
-          ))))
+          
 
 ;;just an example of rendering react components to dom targets.
 (defn mount-it
@@ -745,8 +762,8 @@
 
 ;(defn ^:export main []
 ;;initialize the reactive renderer
-   (r/render [app-body] 
-             (.getElementById js/document "reagent-app"))
+(r/render [app-body] 
+          (.getElementById js/document "reagent-app"))
 ;) 
 
 
@@ -758,7 +775,7 @@
     (def recs  (map gantt/gantt-row (rest lines)))
     (def data  (gantt/gantt-table (map clj->js recs)))
     (def el    (dom/getElement "the-chart"))
-    (def chart (google.visualization.Gantt. el))
-    )
-)
+    (def chart (google.visualization.Gantt. el))))
+    
+
 

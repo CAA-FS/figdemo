@@ -3,8 +3,8 @@
   (:require [figdemo.util :as util]
             [cljs.core.async :as async]
             [goog.dom :as dom]
-            [goog.events :as events]
-            ))
+            [goog.events :as events]))
+            
 
 ;;note: clojurescript support for the file api
 ;;is pretty much non-existent at the moment,
@@ -15,8 +15,8 @@
 (defn input->files [& {:keys [el] :or {el "file"}}]
   (->> (dom/getElement el)
        (.-files)
-       (array-seq)
-       ))
+       (array-seq)))
+       
 
 (defn current-file [& {:keys [el] :or {el "file"}}]
   (first (input->files :el el)))
@@ -28,14 +28,22 @@
 ;;open
 (defn ->file-reader [on-load]
   (let [rdr (js/FileReader.)
-        _ (set! (.-onload rdr) on-load)
-        ]
+        _ (set! (.-onload rdr) on-load)]
+        
     rdr))
 
 (defn read-file! [rdr fl]
   (. rdr (readAsText fl)))
 
+(defn await! 
+  ([the-atom ms]
+   (if-let [res @the-atom] 
+     res
+     (js/setTimeout (fn [] 
+                      (await! the-atom)) ms))))
 
+  
+  
 ;;this isn't exactly what I wanted...
 ;;I really prefer having a channel to process.
 ;;I'm still thinking in terms of synchronous io
@@ -52,13 +60,13 @@
         rdr (->file-reader
              (fn [_]
                (this-as this
-                  (let [txt (.-result this)
+                  (let [txt (.-result this)]
                        ; _ (log! txt)
-                        ]
+                        
                    ; (async/put! res txt)
                     (reset! the-result txt)))))
-        _   (read-file! rdr fl)
-        ]
+        _   (read-file! rdr fl)]
+        
     the-result))
 
 (defn file->lines!! [fl]
@@ -66,13 +74,48 @@
         rdr (->file-reader
              (fn [_]
                (this-as this
-                  (let [txt (.-result this)
+                  (let [txt (.-result this)]
                        ; _ (log! txt)
-                        ]
+                        
                     (go                     
                       (async/put! result txt)
-                      (async/close! result)
-                      )))))
+                      (async/close! result))))))
+                      
         _  (read-file! rdr fl)]
     result))
+
+(defn read-file [fl]
+  (let [f   (js/XMLHttpRequest)
+        res (atom nil)
+        _ (. f (open "GET" fl #_false true))
+        _ (println fl)
+        _ (set! (.-onreadystatechange f) 
+            (fn []
+              (if (= (.-readyState f) 4) ;done
+                (do (println :inside!)
+                  (if (or (= (.-status f) 200)
+                          (= (.-status f) 0))
+                    (do
+                      (println [:status (.-status f)
+                                :response (.-responseText f)])
+                      (reset! res (.-responseText f))))))))
+        _ (. f send nil)]            
+    #_@res    
+    #_(.-responseText f)
+    (await! res 100)
+    @res))
+            
+
+(defn file->lines-sync [fl]
+  (let [the-result (atom nil)
+        rdr (->file-reader
+             (fn [_]
+               (this-as this
+                  (let [txt (.-result this)]
+                       ; _ (log! txt)
+                        
+                   ; (async/put! res txt)
+                    (reset! the-result txt)))))
+        _   (read-file! rdr fl)]        
+    (await! the-result 100)))
 

@@ -32,17 +32,17 @@
      [{:name "x",
        :type  "ordinal",
        :range "width",
-       :domain {:data "table", :field "x"}
+       :domain {:data "table", :field "x"}}
                                         ;:points true
-       }
+       
       {:name "y",
        :type   "ordinal",
        :range  "height",
        :reverse true ;else we get upside down...     
-       :domain {:data "table", :field "y"},
+       :domain {:data "table", :field "y"},}
                                         ;:points true
                                         ;:nice true
-       }
+       
       {:name "z",
        :type "linear",
        :domain [0 #_0.25 #_0.5 #_0.75 1],
@@ -50,12 +50,12 @@
        :zero false}],
      :axes [{:type  "x",
              :scale "x"
-             :title "X-axis"
-              }
+             :title "X-axis"}
+              
             {:type "y",
              :scale "y"
-             :title "Y-axis"
-             }],
+             :title "Y-axis"}]
+           ,
      :legends [{:fill "z" :values [0.0  0.5  1.0] :orient "right"}]
      :marks
      [{:type "rect",
@@ -72,8 +72,8 @@
 (defn set-cursor
   ([v fx fy x y]
    (let [d (.data v)
-         c (aget d "cursor")
-         ]
+         c (aget d "cursor")]
+         
      (do (aset c  0 (clj->js {fx x fy y}))         
          (.update v)))))
 
@@ -91,16 +91,16 @@
 ;;pre-group the data...
 (defn row-col-group [row-field col-field xs]
   (let [rows (indices-by row-field xs)
-        cols (indices-by col-field xs)
-        ]
+        cols (indices-by col-field xs)]
+        
     (->> xs 
          (map (fn [r]
                 (let [rw (row-field r)
                       cl (col-field r)]
-                (assoc r :row (rows rw)
-                         :col   (cols cl)
-                         :group (str rw "-" cl)
-                         )))))))
+                 (assoc r :row (rows rw)
+                          :col   (cols cl)
+                          :group (str rw "-" cl))))))))
+                         
     
 (defn data->heatfacet! [xs xfield yfield zfield rowfield & {:keys [xtitle ytitle ztitle]
                                                             :or   {xtitle "X"
@@ -114,8 +114,8 @@
         xvals (limit-values 10 (distinct (map first xs-ys)))
         yvals (limit-values 10 (distinct (map second xs-ys)))
         cursor [{xfield  (nth xvals 4)
-                 yfield  (nth yvals 4)}]                
-         ]
+                 yfield  (nth yvals 4)}]]                
+         
     {:width  200
      :height 500
      :padding "auto" ;"strict"
@@ -128,8 +128,8 @@
      [{:name "x"
        :type  "ordinal"
        :range "width"
-       :domain {:data from, :field xfield}
-       }
+       :domain {:data from, :field xfield}}
+       
       {:name "z",
        :type "linear",
        :domain {:data from :field zfield};[0 #_0.25 #_0.5 #_0.75 1],
@@ -167,19 +167,19 @@
          ;:padding 1.2,
          :domain
          {:data from,
-          :field yfield,
-          },
+          :field yfield,}
+         ,
          :reverse true}],
        :axes [{:type  "x",
                :scale "x"
                :title xtitle
-               :values xvals
-               }
+               :values xvals}
+               
               {:type  "y",
                :scale "y"
                :title ytitle
-               :values yvals
-               }]       
+               :values yvals}]
+                      
        :marks [{:type "rect",
                 :properties
                 {:enter
@@ -205,11 +205,11 @@
                  :hover
                  {:cursor {:value :pointer}
                   :fill   {:value "black"}
-                  :fillOpacity {:value 1.0}}
+                  :fillOpacity {:value 1.0}}}}]}
                   
                  
-                   }}]
-       }
+                   
+       
       ;;labels
       {:type "text",
        :from {:mark stackname},
@@ -223,8 +223,8 @@
          :text  {:field (datum rowfield)},
          :align {:value "center"},
          :baseline {:value "bottom"},
-         :fill {:value "#000"}}}}
-      ]}))
+         :fill {:value "#000"}}}}]}))
+      
                                         ;(defn layers->heat-specs [groups]
 
 (defn random-data [xs]
@@ -251,8 +251,8 @@
         yvals (limit-values 10 (distinct (map second xs-ys)))
         cursor [{xfield  (nth xvals 4)
                  yfield  (nth yvals 4)}]
-        groupfield :group
-         ]
+        groupfield :group]
+         
     {:width  200
      :height 500
      :padding "auto" ;"strict"
@@ -301,8 +301,8 @@
        :scales   [{:name "x"
                    :type  "ordinal"
                    :range "width"
-                   :domain {:data from, :field xfield}
-                   }
+                   :domain {:data from, :field xfield}}
+                   
                   {:name "y",
                    :type "ordinal",
                    :range "height",
@@ -310,19 +310,19 @@
                                         ;:padding 1.2,
                    :domain
                    {:data from,
-                    :field yfield,
-                    },
+                    :field yfield,}
+                   ,
                    :reverse true}],
        :axes [{:type  "x",
                :scale "x"
                :title xtitle
-               :values xvals
-               }
+               :values xvals}
+               
               {:type  "y",
                :scale "y"
                :title ytitle
-               :values yvals
-               }]       
+               :values yvals}]
+                      
        :marks [{:type "rect",
                 :properties
                 {:enter
@@ -348,26 +348,26 @@
                  :hover
                  {:cursor {:value :pointer}
                   :fill   {:value "black"}
-                  :fillOpacity {:value 1.0}}
+                  :fillOpacity {:value 1.0}}}}]}
                  
                  
-                 }}]
-       }
+                 
+       
       ;;labels
       #_{:type "text",
-       :from {:mark stackname},
-       :properties
+         :from {:mark stackname},
+         :properties
        ;;place a mark at 1/2 the sub-group's width...
-       {:enter
-        {:x {:field {:group "width"}, :mult 0.9},
-         :y {:field "y", :offset 2}, ;;2 pts above the plot  ;;note had to use "y" literal here.
-         :fontWeight {:value "bold"},
-         :fontSize {:value 14}
-         :text  {:field (datum rowfield)},
-         :align {:value "center"},
-         :baseline {:value "bottom"},
-         :fill {:value "#000"}}}}
-      ]}))
+         {:enter
+          {:x {:field {:group "width"}, :mult 0.9},
+           :y {:field "y", :offset 2}, ;;2 pts above the plot  ;;note had to use "y" literal here.
+           :fontWeight {:value "bold"},
+           :fontSize {:value 14}
+           :text  {:field (datum rowfield)},
+           :align {:value "center"},
+           :baseline {:value "bottom"},
+           :fill {:value "#000"}}}}]}))
+      
   
 
 #_(draw! :surface-chart
@@ -428,10 +428,10 @@
      :reverse true}],
    :axes
    [{:type  "y",
-     :scale "y",
+     :scale "y",}]
      ;:tickSize 0,
      ;:properties {:axis {:stroke {:value "transparent"}}}
-     }],
+   ,
    :properties ;;set up where to plot the marks for each group..
    {:enter
     {:x      {:value 0.5}, ;;all charts are stacked on the same x-coordinate, {:scale "group", :field "key"} makes them diagonal
@@ -549,8 +549,8 @@
   (vec
    (for [year [2009 2010 2011]
          site    ["a" "b" "c"]
-         variety ["frankencense" "mir" "gold"]
-         ]
+         variety ["frankencense" "mir" "gold"]]
+         
      {"year"   year
       "site"    site     
       "variety" variety
@@ -562,13 +562,13 @@
     (vec (for [ac     (range 5 xmax)
                rc     (range 10 ymax)
                period ["PreSurge" "Surge" "PostSurge"]]
-         {:AC ac
-          :RC rc
-          :Period period
-          :Fill (case period
-                  "PreSurge" (rand)
-                  "Surge"    (/ (+ ac rc) (+ xmax ymax))
-                  (min (/ (+ (* ac 3.0) rc) (+ xmax ymax)) 1.0))}))))
+          {:AC ac
+           :RC rc
+           :Period period
+           :Fill (case period
+                   "PreSurge" (rand)
+                   "Surge"    (/ (+ ac rc) (+ xmax ymax))
+                   (min (/ (+ (* ac 3.0) rc) (+ xmax ymax)) 1.0))}))))
              
 
 ;;now lets draw heatmaps!
@@ -585,8 +585,8 @@
                  {:name "some-data"
                   :values the-data})
         from       (:name data)
-        stackname  (str rowfield "s")
-        ]
+        stackname  (str rowfield "s")]
+        
     {:width  200,
      :height 720,
      :data   [data]
@@ -613,7 +613,7 @@
          :text {:field (datum rowfield)},
          :align {:value "center"},
          :baseline {:value "bottom"},
-         :fill {:value "#000"}}}}]} ))
+         :fill {:value "#000"}}}}]}))
 
 ;;identical to stacked, but provides a unique xaxis for each
 ;;facet.
@@ -622,8 +622,8 @@
                  {:name "some-data"
                   :values the-data})
         from       (:name data)
-        stackname  (str rowfield "s")
-        ]
+        stackname  (str rowfield "s")]
+        
     {:width  200,
      :height 720,
      :data   [data]
@@ -638,7 +638,7 @@
                       :rowfield rowfield
                       :trendfield trendfield)
           (update   :axes   (fn [x] (conj (or x [])
-                               {:type "x", :scale "x"}))))
+                                     {:type "x", :scale "x"}))))
       ;;site-names, this is "technically" a function of the preceding marks...
       {:type "text",
        :from {:mark stackname},
@@ -739,7 +739,7 @@
        :text {:field "datum.site"},
        :align {:value "center"},
        :baseline {:value "bottom"},
-       :fill {:value "#000"}}}}]} )
+       :fill {:value "#000"}}}}]})
 
 
 (def scatter
@@ -821,9 +821,9 @@
          :fillOpacity {:value 0.5}},
         :update {:size {:value 36}, :stroke {:value "transparent"}},
         :hover {:size {:value 100}, :stroke {:value "white"}}}}]}]})
-(defn layers->heatmap [xs]
+(defn layers->heatmap [xs])
   
- )
+ 
 
 ;; #_{:type "rect", :from {:data "table"},
 ;;        :properties #_{:enter {:x {:scale "x", :field "x"}
@@ -951,11 +951,11 @@
 ;;we can predicate this to look for a specific chart.
 
 #_(defn vega-root []
-  (let [_ (js/console.log "Starting the vega-root")
-        _ (parse-input)]
-    (fn [] 
-      (let [{:keys [input error chart cursor]} @app-state]
-        [:div
+   (let [_ (js/console.log "Starting the vega-root")
+         _ (parse-input)]
+     (fn [] 
+       (let [{:keys [input error chart cursor]} @app-state]
+         [:div
          ;; [:h1 "vega-tools example"]
          ;; [:div.container-fluid
          ;;  [:div.editor.col-md-6
@@ -964,14 +964,14 @@
          ;;    {:default-value input
          ;;     :on-change #(swap! app-state assoc :input (-> % .-target .-value))}]]]
           ;[:div
-           (cond
-             error [:div
-                    [:h2 "Validation error"]
-                    [:pre (with-out-str (pprint/pprint error))]]
-             chart [vega-chart {:chart chart :cursor cursor}]
-             :else "Processing...")]
+            (cond
+              error [:div
+                     [:h2 "Validation error"]
+                     [:pre (with-out-str (pprint/pprint error))]]
+              chart [vega-chart {:chart chart :cursor cursor}]
+              :else "Processing...")]))))
                                         ;]
-      ))))
+      
 
 ;;instead of :chart, looks for :bars in our app-state.
 (defn bars-root    []
@@ -1020,8 +1020,8 @@
     (fn [] 
       [:div
        [bars-root]
-       [surface-root]]       
-      )))
+       [surface-root]])))       
+      
 
 ;;can we re-write vega-root...
 ;;so that it's a function of data?
@@ -1042,26 +1042,26 @@
                     {"x" 13, "y" 87}, {"x" 14, "y" 66},
                     {"x" 15, "y" 17}, {"x" 16, "y" 27},
                     {"x" 17, "y" 68}, {"x" 18, "y" 16},
-                    {"x" 19, "y" 49}, {"x" 20, "y" 15}
-                   ]})
+                    {"x" 19, "y" 49}, {"x" 20, "y" 15}]})
+                   
 
 (comment 
-(def chrt (atom nil))
+ (def chrt (atom nil))
 
-(defn ->mounted-chart [opts]
-  (fn [this]
-    (let [c  (js/Highcharts.Chart. (reagent/dom-node this) (clj->js opts))
-          _  (reset! chrt c)]
-      c)))
+ (defn ->mounted-chart [opts]
+   (fn [this]
+     (let [c  (js/Highcharts.Chart. (reagent/dom-node this) (clj->js opts))
+           _  (reset! chrt c)]
+       c)))
 
 ;;takes a specification for the chart, and creates and mounts our chart from it.
-(defn chart-component [& {:keys [spec chartref] :or {spec demo-config}}]
-  (let [c  (->mounted-chart spec)
-        _  (when chartref (reset! chartref c))]
-    (reagent/create-class
-     {:reagent-render chart-render
-      :component-did-mount c})))
-)
+ (defn chart-component [& {:keys [spec chartref] :or {spec demo-config}}]
+   (let [c  (->mounted-chart spec)
+         _  (when chartref (reset! chartref c))]
+     (reagent/create-class
+      {:reagent-render chart-render
+       :component-did-mount c}))))
+
 
 
 
@@ -1088,59 +1088,59 @@
              :type  "ordinal",
              :domain  {:data "table", :field "category"},
              :range  "height",
-             :padding 0.2
-             },
+             :padding 0.2}
+            ,
             {:name  "val",
              :type  "linear",
              :domain  {:data "table", :field "value"},
              :range  "width",
              :round true,
-             :nice true
-             },
+             :nice true}
+            ,
             {:name  "color",
              :type  "ordinal",
              :domain  {:data "table", :field "position"},
              :range  "category10"}]
-  :axes [{:type  "y", :scale "cat", :tickSize 0, :tickPadding 8},
-         {:type  "x", :scale "val"}],
-  :marks [{:type  "group",
-           :from {:data "table",
-                  :transform [{:type "facet", :groupby ["category"]}]},
-           :properties  {:enter  {:y {:scale "cat", :field "key"},
-                                  :height {:scale "cat", :band true}}},
-           :scales [{:name  "pos",
-                     :type  "ordinal",
-                     :range  "height",
-                     :domain  {:field "position"}
-                     }],
-           :marks [{:name  "bars",
-                    :type  "rect",
-                    :properties
-                    {:enter  {:y      {:scale "pos", :field "position"},
-                              :height {:scale "pos", :band true},
-                              :x      {:scale "val", :field "value"},
-                              :x2     {:scale "val", :value 0},
-                              :fill   {:scale "color", :field "position"}}}},
-                   {:type  "text",
-                    :from {:mark "bars"},
-                    :properties  {:enter  {:x {:field  "x2", :offset -5},
-                                           :y {:field  "y"},
-                                           :dy {:field  "height", :mult 0.5},
-                                           :fill {:value  "white"},
-                                           :align {:value  "right"},
-                                           :baseline {:value  "middle"},
-                                           :text {:field "datum.value"}}}}]
-           }
-          ]})
+   :axes [{:type  "y", :scale "cat", :tickSize 0, :tickPadding 8},
+          {:type  "x", :scale "val"}],
+   :marks [{:type  "group",
+            :from {:data "table",
+                   :transform [{:type "facet", :groupby ["category"]}]},
+            :properties  {:enter  {:y {:scale "cat", :field "key"},
+                                   :height {:scale "cat", :band true}}},
+            :scales [{:name  "pos",
+                      :type  "ordinal",
+                      :range  "height",
+                      :domain  {:field "position"}}]
+                    ,
+            :marks [{:name  "bars",
+                     :type  "rect",
+                     :properties
+                     {:enter  {:y      {:scale "pos", :field "position"},
+                               :height {:scale "pos", :band true},
+                               :x      {:scale "val", :field "value"},
+                               :x2     {:scale "val", :value 0},
+                               :fill   {:scale "color", :field "position"}}}},
+                    {:type  "text",
+                     :from {:mark "bars"},
+                     :properties  {:enter  {:x {:field  "x2", :offset -5},
+                                            :y {:field  "y"},
+                                            :dy {:field  "height", :mult 0.5},
+                                            :fill {:value  "white"},
+                                            :align {:value  "right"},
+                                            :baseline {:value  "middle"},
+                                            :text {:field "datum.value"}}}}]}]})
+           
+          
 
 
 (defn grouped-bars [xs {:keys [valfield trendfield catfield
-                            xtitle ytitle ]
-                     :or {valfield   "value"
-                          catfield   "category"
-                          trendfield "position"
-                          xtitle     valfield
-                          ytitle     "Categories"}}]
+                               xtitle ytitle]
+                        :or {valfield   "value"
+                             catfield   "category"
+                             trendfield "position"
+                             xtitle     valfield
+                             ytitle     "Categories"}}]
   (let [from "table"]
     {:width 200
      :height 200
@@ -1173,8 +1173,8 @@
               :scales [{:name  "pos"
                         :type  "ordinal"
                         :range  "height"
-                        :domain  {:field trendfield}
-                        }]
+                        :domain  {:field trendfield}}]
+                        
               :marks [{:name  "bars"
                        :type  "rect"
                        :properties
@@ -1186,8 +1186,8 @@
                         :update  {:y     {:scale "pos" :field trendfield}
                                 ;  :height {:scale "pos" :band true}
                                   :x     {:scale "val" :field valfield}
-                                  :x2    {:scale "val" :value 0}
-                                  }}}
+                                  :x2    {:scale "val" :value 0}}}}
+                                  
                       {:type  "text"
                        :from {:mark "bars"}
                        :properties  {:enter  {:x {:field  "x2" :offset -5}
@@ -1199,19 +1199,19 @@
                                               :text {:field (datum valfield)}}
                                      :update  {:x {:field  "x2" :offset -5}
                                                :y {:field  "y"}
-                                               :text {:field (datum valfield)}}}}]
-              }
-             ]}))
+                                               :text {:field (datum valfield)}}}}]}]}))
+              
+             
 
 
 ;;aborted attempt at vertical bars; needs work.
 (defn grouped-barsv [xs {:keys [valfield trendfield catfield
-                            xtitle ytitle ]
-                     :or {valfield   "value"
-                          catfield   "category"
-                          trendfield "position"
-                          xtitle     valfield
-                          ytitle     "Categories"}}]
+                                xtitle ytitle]
+                         :or {valfield   "value"
+                              catfield   "category"
+                              trendfield "position"
+                              xtitle     valfield
+                              ytitle     "Categories"}}]
   (let [from "table"]
     {:width 300
      :height 300
@@ -1244,8 +1244,8 @@
               :scales [{:name  "pos"
                         :type  "ordinal"
                         :range  "width"
-                        :domain  {:field trendfield}
-                        }]
+                        :domain  {:field trendfield}}]
+                        
               :marks [{:name  "bars"
                        :type  "rect"
                        :properties
@@ -1257,8 +1257,8 @@
                         :update  {:x     {:scale "pos" :field trendfield}
                                 ;  :height {:scale "pos" :band true}
                                   :y     {:scale "val" :field valfield}
-                                  :y2    {:scale "val" :value 0}
-                                  }}}
+                                  :y2    {:scale "val" :value 0}}}}
+                                  
                       {:type  "text"
                        :from {:mark "bars"}
                        :properties  {:enter  {:y {:field  "y2" :offset -5}
@@ -1270,9 +1270,9 @@
                                               :text {:field (datum valfield)}}
                                      :update  {:y {:field  "y2" :offset -5}
                                                :x {:field  "x"}
-                                               :text {:field (datum valfield)}}}}]
-              }
-             ]}))
+                                               :text {:field (datum valfield)}}}}]}]}))
+              
+             
 
 
 
