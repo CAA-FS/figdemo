@@ -84,38 +84,55 @@
         _  (read-file! rdr fl)]
     result))
 
-(defn read-file [fl]
-  (let [f   (js/XMLHttpRequest)
-        res (atom nil)
-        _ (. f (open "GET" fl #_false true))
-        _ (println fl)
-        _ (set! (.-onreadystatechange f) 
-            (fn []
-              (if (= (.-readyState f) 4) ;done
-                (do (println :inside!)
-                  (if (or (= (.-status f) 200)
-                          (= (.-status f) 0))
-                    (do
-                      (println [:status (.-status f)
-                                :response (.-responseText f)])
-                      (reset! res (.-responseText f))))))))
-        _ (. f send nil)]            
-    #_@res    
-    #_(.-responseText f)
-    (await! res 100)
-    @res))
+
+;;for pedagocial purposes, these are two
+;;ways to synchronously read files.
+;;They'd work fine in a serve-side
+;;js platform like node or rhino.
+;;The problem is, in the browser 
+;;security model, you can't 
+;;read local files without user
+;;initiation.
+;;So, that means when you use either
+;;method, you get an empty result.
+;;Outside the browser, should be
+;;fine.
+;;So, users must select files
+;;using the file API and 
+;;input forms no matter what.
+
+#_(defn read-file [fl]
+   (let [f   (js/XMLHttpRequest)
+         res (atom nil)
+         _ (. f (open "GET" fl #_false true))
+         _ (println fl)
+         _ (set! (.-onreadystatechange f) 
+             (fn []
+               (if (= (.-readyState f) 4) ;done
+                 (do (println :inside!)
+                   (if (or (= (.-status f) 200)
+                           (= (.-status f) 0))
+                     (do
+                       (println [:status (.-status f)
+                                 :response (.-responseText f)])
+                       (reset! res (.-responseText f))))))))
+         _ (. f send nil)]            
+     #_@res    
+     #_(.-responseText f)
+     (await! res 100)
+     @res))
             
 
-(defn file->lines-sync [fl]
-  (let [the-result (atom nil)
-        rdr (->file-reader
-             (fn [_]
-               (this-as this
-                  (let [txt (.-result this)]
-                       ; _ (log! txt)
-                        
-                   ; (async/put! res txt)
-                    (reset! the-result txt)))))
-        _   (read-file! rdr fl)]        
-    (await! the-result 100)))
+#_(defn file->lines-sync [fl]
+    (let [the-result (atom nil)
+          rdr (->file-reader
+                (fn [_]
+                  (this-as this
+                    (let [txt (.-result this)]
+                      ; _ (log! txt)
+                      
+                      ; (async/put! res txt)
+                      (reset! the-result txt)))))
+          _   (read-file! rdr fl)]        
+      (await! the-result 100)))
 
